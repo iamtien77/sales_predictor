@@ -1,0 +1,3 @@
+"""
+Sales Predictor Test Suite
+"""
