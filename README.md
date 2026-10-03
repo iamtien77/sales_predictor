@@ -70,23 +70,24 @@ Một công ty e-commerce muốn **dự đoán doanh số bán hàng** (sales) c
 |-----------|----------|
 | `handle_missing_values(df)` | Xử lý giá trị thiếu bằng imputation (mean/median) hoặc drop |
 | `handle_outliers(df, columns)` | Phát hiện outliers bằng IQR hoặc Z-score, xử lý (clip/remove) |
-| `encode_categorical(df, columns)` | Chuyển biến categorical → numerical (Label Encoding / One-Hot Encoding) |
-| `split_data(df, target)` | Tách features (X) và target (y), chia train/test |
-| `scale_features(X_train, X_test)` | Chuẩn hóa bằng StandardScaler (fit trên train, transform trên test) |
+| `encode_categorical(df, columns)` | Chuyển biến categorical → numerical (One-Hot Encoding / Ordinal) |
+| `split_data(df, target, temporal=True)` | Hỗ trợ cả **Temporal Split** (theo mốc thời gian để tránh rò rỉ dữ liệu) và Random Split |
+| `build_preprocessor_pipeline()` | Tạo `ColumnTransformer` chuẩn hóa số và mã hóa categorical, fit trên train và transform trên test |
 
 ### 3.4. `data/feature_engineering.py` — Tạo features mới
 | Nhiệm vụ | Chi tiết |
 |-----------|----------|
 | `add_product_popularity(df)` | Tạo feature popularity dựa trên số lượng reviews, ratings |
 | `add_customer_lifetime_value(df)` | Tính Customer Lifetime Value (CLV) từ lịch sử mua hàng |
-| `add_seasonal_trends(df)` | Thêm features mùa vụ: month, quarter, is_holiday |
+| `add_seasonal_trends(df)` | Thêm features mùa vụ: month, quarter, day_of_week, is_holiday, is_weekend |
+| `add_lag_and_rolling_features(df)` | Thêm lag sales (doanh số chu kỳ trước) và rolling mean (trung bình trượt 7 ngày/30 ngày) |
 | `add_purchase_frequency(df)` | Tính tần suất mua hàng của khách |
 | `add_marketing_features(df)` | Tính ROI marketing, tỷ lệ ad spend / revenue |
 
-### 3.5. `models/regressors.py` — 4 mô hình hồi quy
+### 3.5. `models/regressors.py` — Các mô hình hồi quy
 | Nhiệm vụ | Chi tiết |
 |-----------|----------|
-| `get_models()` | Trả về dict `{name: model}` cho Linear Regression, Decision Tree, Random Forest, Gradient Boosting |
+| `get_models()` | Trả về dict `{name: model}` cho Linear Regression, Decision Tree, Random Forest, Gradient Boosting, XGBoost |
 | `train_and_evaluate(models, X_train, X_test, y_train, y_test)` | Huấn luyện từng model, tính metrics (MSE, MAE, RMSE, R²) |
 
 ### 3.6. `models/tuning.py` — Tối ưu Hyperparameter
@@ -167,36 +168,71 @@ Một công ty e-commerce muốn **dự đoán doanh số bán hàng** (sales) c
 |----------|----------|
 | `pandas` | Xử lý dữ liệu dạng bảng |
 | `numpy` | Tính toán số học |
-| `scikit-learn` | Mô hình ML, tiền xử lý, đánh giá |
+| `scikit-learn` | Mô hình ML, tiền xử lý, pipeline, đánh giá |
+| `xgboost` / `lightgbm` | Thuật toán Gradient Boosting hiệu năng cao |
 | `matplotlib` | Vẽ biểu đồ cơ bản |
 | `seaborn` | Biểu đồ thống kê nâng cao |
-| `joblib` | Lưu/tải model |
+| `joblib` | Lưu/tải model và pipeline |
+| `streamlit` | Giao diện Web demo trực quan cho dự đoán theo kịch bản |
 
 ---
 
-## 5. Cấu trúc thư mục
+## 5. Cấu trúc thư mục dự án
 
-```
+```text
 sales_predictor/
-├── main.py                         # Entry point, điều phối workflow
-├── config.py                       # Cấu hình (paths, params, grids)
-├── requirements.txt                # Dependencies
-├── README.md                       # Tài liệu phân tích bài toán
-├── data/
-│   ├── loader.py                   # Tải dữ liệu
-│   ├── preprocessing.py            # Tiền xử lý (missing, outlier, encode, split, scale)
-│   └── feature_engineering.py      # Tạo features mới (popularity, CLV, seasonal)
-├── models/
-│   ├── regressors.py               # 4 mô hình: LR, DT, RF, GB
-│   ├── tuning.py                   # GridSearchCV hyperparameter tuning
-│   └── persistence.py              # Lưu/tải model (joblib)
-├── evaluation/
-│   ├── metrics.py                  # MSE, MAE, RMSE, R²
-│   ├── visualization.py            # EDA, Actual vs Predicted, Residuals, so sánh
-│   └── error_analysis.py           # Phân tích lỗi dự đoán
-├── deployment/
-│   └── predictor.py                # Dự đoán sales, demo kịch bản
-├── results/                        # Output: biểu đồ (.png), bảng (.csv)
-└── utils/
-    └── logger.py                   # Logging và tiện ích
+├── main.py                         # Entry point, điều phối toàn bộ workflow
+├── requirements.txt                # Thư viện phụ thuộc
+├── README.md                       # Tài liệu phân tích và thiết kế bài toán
+├── .gitignore                      # Bảo vệ dữ liệu và models
+├── data/                           # Thư mục lưu trữ dữ liệu thực tế (được .gitignore)
+│   ├── raw/                        # File CSV gốc tải về (Kaggle e-commerce / online retail)
+│   └── processed/                  # File dữ liệu sau khi làm sạch và thêm features
+├── notebooks/                      # Thử nghiệm tương tác và báo cáo từng bước
+│   ├── 01_exploratory_data_analysis.ipynb              # 1. EDA, phân bố target, tương quan
+│   ├── 02_preprocessing_and_feature_engineering.ipynb # 2. Làm sạch & tạo đặc trưng
+│   ├── 03_model_training_and_comparison.ipynb         # 3. Train 4 mô hình & so sánh metrics
+│   ├── 04_hyperparameter_tuning_and_error_analysis.ipynb # 4. Tối ưu GridSearchCV & phân tích lỗi
+│   └── 05_scenario_prediction_and_demo.ipynb          # 5. Dự đoán theo kịch bản (Deployment)
+├── results/                        # Toàn bộ output kết quả huấn luyện
+│   ├── figures/                    # Biểu đồ trực quan hóa (.png)
+│   ├── metrics/                    # Bảng so sánh chỉ số đánh giá (.csv)
+│   └── saved_models/               # File model và pipeline đã lưu (.joblib)
+└── src/                            # Toàn bộ mã nguồn dự án
+    ├── __init__.py
+    ├── config.py                   # Cấu hình tập trung (paths, features, hyperparameter grids)
+    ├── data/
+    │   ├── __init__.py
+    │   ├── loader.py               # Tải dữ liệu từ CSV/Kaggle
+    │   ├── preprocessing.py        # Tiền xử lý (missing, outlier, encode, temporal/random split)
+    │   └── feature_engineering.py  # Tạo features (popularity, CLV, seasonal, lag & rolling)
+    ├── models/
+    │   ├── __init__.py
+    │   ├── regressors.py           # Các mô hình: LR, DT, RF, Gradient Boosting, XGBoost
+    │   ├── tuning.py               # GridSearchCV hyperparameter tuning
+    │   └── persistence.py          # Lưu/tải toàn bộ Pipeline (preprocessor + model)
+    ├── evaluation/
+    │   ├── __init__.py
+    │   ├── metrics.py              # MSE, MAE, RMSE, R²
+    │   ├── visualization.py        # EDA, Actual vs Predicted, Residuals, Feature Importance
+    │   └── error_analysis.py       # Phân tích các trường hợp sai lệch lớn nhất (worst cases)
+    ├── deployment/
+    │   ├── __init__.py
+    │   └── predictor.py            # Dự đoán sales theo kịch bản (new product, marketing)
+    └── utils/
+        ├── __init__.py
+        └── logger.py               # Logging theo dõi và decorator đo thời gian chạy
 ```
+
+---
+
+## 6. Các điểm cốt lõi về kỹ thuật (Best Practices)
+
+1. **Phòng tránh Data Leakage (Rò rỉ dữ liệu tương lai):**
+   - Dữ liệu bán hàng e-commerce mang tính chất thời gian. Dự án hỗ trợ **Temporal Split** (huấn luyện trên các tháng trước, kiểm tra trên các tháng sau) thay vì chỉ random split thông thường.
+   - Các phép tính thống kê (mean, standard scaler, frequency encoder) chỉ được `fit` trên tập Train và `transform` trên tập Test/Inference.
+2. **End-to-End Pipeline Serialization:**
+   - Khi lưu mô hình (`persistence.py`), lưu cả bộ tiền xử lý (`ColumnTransformer` / `Pipeline`) đi kèm mô hình. Nhờ đó khi có dữ liệu mới ở phần Deployment, dữ liệu tự động được scale và encode tương thích hoàn toàn mà không sợ lệch số chiều.
+3. **Phân tích lỗi (Error Analysis):**
+   - Không chỉ dừng ở báo cáo MSE/RMSE, module `error_analysis.py` tự động trích xuất các sản phẩm bị dự đoán lệch nhiều nhất để rút kinh nghiệm và tinh chỉnh features.
+
