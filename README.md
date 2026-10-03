@@ -222,6 +222,13 @@ sales_predictor/
     └── utils/
         ├── __init__.py
         └── logger.py               # Logging theo dõi và decorator đo thời gian chạy
+└── tests/                          # Bộ kiểm thử tự động (Unit Tests với Pytest)
+    ├── __init__.py
+    ├── conftest.py                 # Fixtures dữ liệu mẫu
+    ├── test_preprocessing.py       # Kiểm thử làm sạch & split dữ liệu
+    ├── test_feature_engineering.py # Kiểm thử tạo 5 nhóm đặc trưng
+    ├── test_models.py              # Kiểm thử mô hình, tuning & lưu pipeline
+    └── test_deployment.py          # Kiểm thử dự đoán theo kịch bản
 ```
 
 ---
