@@ -32,3 +32,4 @@ results/metrics/*
 .vscode/
 .idea/
 *.swp
+docs/
