@@ -7,22 +7,29 @@ Một công ty e-commerce muốn **dự đoán doanh số bán hàng** (sales) c
 Đây là bài toán **hồi quy (regression)** — dự đoán một biến liên tục (sales) dựa trên nhiều đặc trưng đầu vào.
 
 ### Dữ liệu đầu vào
-- **Dataset**: E-commerce / Online Retail dataset từ Kaggle
-- Các nhóm đặc trưng:
-  - **Product information**: Danh mục sản phẩm (category), giá (price), mô tả (description)
-  - **Customer demographics**: Tuổi (age), giới tính (gender), vị trí (location)
-  - **Purchase history**: Lịch sử mua (previous purchases), tần suất mua (purchase frequency)
-  - **Marketing campaign data**: Chiến dịch chạy (campaigns run), chi phí quảng cáo (ad spend)
-  - **Seasonal & holiday**: Thông tin mùa vụ, ngày lễ
+- **Dataset chính thức**: **Brazilian E-Commerce Public Dataset by Olist** (Kaggle)
+  - **File nguồn**: `data/raw/olist_customers_dataset.csv` (~99,442 dòng dữ liệu khách hàng thực tế)
+  - **Cấu trúc trường dữ liệu gốc**:
+    - `customer_id`: Khóa định danh của khách hàng cho từng đơn hàng
+    - `customer_unique_id`: Định danh duy nhất của khách hàng (dùng để tính toán tần suất mua lại, lịch sử mua sắm và CLV)
+    - `customer_zip_code_prefix`: Mã bưu chính khu vực sinh sống của khách hàng
+    - `customer_city`: Thành phố của khách hàng
+    - `customer_state`: Bang/khu vực địa lý của khách hàng
+- **Các nhóm đặc trưng theo đề bài**:
+  - **Product information & Popularity**: Danh mục sản phẩm (`category`), giá (`price`), mô tả (`description`), số lượng đánh giá (`num_reviews`), điểm đánh giá (`rating`), điểm phổ biến (`popularity_score`)
+  - **Customer demographics & Location**: Vị trí địa lý (`location` / `customer_city` / `customer_state`), độ tuổi (`age`), nhóm tuổi (`age_group`), giới tính (`gender`)
+  - **Purchase history & CLV**: Số lần mua trước (`previous_purchases`), tần suất mua (`purchase_frequency`), số ngày mua gần nhất (`recency_days`), giá trị đơn trung bình (`avg_order_value`), giá trị vòng đời khách hàng (`customer_lifetime_value`)
+  - **Marketing campaign data**: Chiến dịch chạy (`campaigns_run`), ngân sách quảng cáo (`ad_spend`), kênh tiếp thị (`campaign_channel`), tỷ lệ giảm giá (`discount_rate`), giá sau giảm (`discounted_price`), tỷ số chi phí quảng cáo/giá (`ad_spend_to_price_ratio`)
+  - **Seasonal & holiday**: Tháng (`month`), quý (`quarter`), ngày trong tuần (`day_of_week`), cờ ngày lễ (`is_holiday`), mùa cao điểm mua sắm (`is_peak_shopping_season`), và các đặc trưng trễ (`sales_lag_1`, `sales_rolling_mean_7`)
 
 ### Biến mục tiêu (Target Variable)
-- **Product sales** — biến số liên tục (numerical)
+- **Product sales** — biến số liên tục (numerical), phản ánh tổng doanh số hoặc lượng tiêu thụ sản phẩm cần dự báo.
 
 ### Đầu ra mong muốn
 - Giá trị dự đoán sales cho từng sản phẩm
-- Bảng so sánh hiệu suất giữa các mô hình hồi quy
-- Biểu đồ trực quan (Actual vs Predicted, Residuals, Feature Importance)
-- Dự đoán theo nhiều kịch bản (new product launch, marketing campaign, seasonal promotion)
+- Bảng so sánh hiệu suất giữa các mô hình hồi quy (RMSE, MAE, MSE, R²)
+- Biểu đồ trực quan chuẩn xuất bản (Actual vs Predicted, Residuals Plot, Feature Importance, Model Comparison)
+- Dự đoán theo 3 kịch bản kinh doanh thực tế (New Product Launch, Marketing Campaign, Seasonal Promotion)
 
 ---
 
@@ -54,16 +61,16 @@ Một công ty e-commerce muốn **dự đoán doanh số bán hàng** (sales) c
 ### 3.1. `config.py` — Cấu hình project
 | Nhiệm vụ | Chi tiết |
 |-----------|----------|
-| Đường dẫn dữ liệu | URL dataset Kaggle, đường dẫn file local, thư mục output |
-| Tên features | Danh sách features theo nhóm (product, customer, marketing, seasonal) |
-| Tham số chung | `test_size=0.2`, `random_state=42`, `cv_folds=5` |
-| Hyperparameter grids | Dict tham số GridSearchCV cho Decision Tree, Random Forest, Gradient Boosting |
+| Đường dẫn dữ liệu | `RAW_DATA_FILE = data/raw/olist_customers_dataset.csv`, `PROCESSED_DATA_FILE = data/processed/cleaned_sales_data.csv`, thư mục `results/` |
+| Tên features | Định nghĩa đầy đủ 5 nhóm features: Product, Customer Demographics, Purchase/CLV, Marketing, Seasonal & Lag |
+| Tham số chung | Tỷ lệ chia 8:1:1 (`train_size=0.8`, `val_size=0.1`, `test_size=0.1`), `random_state=42`, `cv_folds=5`, `USE_TEMPORAL_SPLIT=True` |
+| Hyperparameter grids | Dict tham số GridSearchCV cho Decision Tree, Random Forest, Gradient Boosting, XGBoost |
 
 ### 3.2. `data/loader.py` — Tải dữ liệu
 | Nhiệm vụ | Chi tiết |
 |-----------|----------|
-| `load_data()` | Tải dataset e-commerce từ Kaggle hoặc file CSV local, trả về DataFrame |
-| `explore_data(df)` | In shape, kiểu dữ liệu, missing values, thống kê mô tả, phân bố target |
+| `load_data(filepath)` | Nạp dataset khách hàng Olist E-commerce từ `data/raw/olist_customers_dataset.csv` (hỗ trợ fallback utf-8, latin-1), trả về DataFrame |
+| `explore_data(df)` | In shape, kiểu dữ liệu, tỷ lệ missing values, phân bố địa lý theo bang/thành phố, thống kê mô tả |
 
 ### 3.3. `data/preprocessing.py` — Tiền xử lý dữ liệu
 | Nhiệm vụ | Chi tiết |
@@ -71,8 +78,8 @@ Một công ty e-commerce muốn **dự đoán doanh số bán hàng** (sales) c
 | `handle_missing_values(df)` | Xử lý giá trị thiếu bằng imputation (mean/median) hoặc drop |
 | `handle_outliers(df, columns)` | Phát hiện outliers bằng IQR hoặc Z-score, xử lý (clip/remove) |
 | `encode_categorical(df, columns)` | Chuyển biến categorical → numerical (One-Hot Encoding / Ordinal) |
-| `split_data(df, target, temporal=True)` | Hỗ trợ cả **Temporal Split** (theo mốc thời gian để tránh rò rỉ dữ liệu) và Random Split |
-| `build_preprocessor_pipeline()` | Tạo `ColumnTransformer` chuẩn hóa số và mã hóa categorical, fit trên train và transform trên test |
+| `split_data(df, target, train_size=0.8, val_size=0.1, test_size=0.1, temporal=True)` | Phân chia 3 tập **Train / Val / Test (8:1:1)** hỗ trợ cả Temporal Split (chống rò rỉ dữ liệu) và Random Split |
+| `scale_features(X_train, X_val, X_test)` / `build_preprocessor_pipeline()` | Chuẩn hóa số và mã hóa categorical bằng `ColumnTransformer`, fit trên Train (80%) và transform trên Val (10%), Test (10%) |
 
 ### 3.4. `data/feature_engineering.py` — Tạo features mới
 | Nhiệm vụ | Chi tiết |
@@ -186,8 +193,10 @@ sales_predictor/
 ├── README.md                       # Tài liệu phân tích và thiết kế bài toán
 ├── .gitignore                      # Bảo vệ dữ liệu và models
 ├── data/                           # Thư mục lưu trữ dữ liệu thực tế (được .gitignore)
-│   ├── raw/                        # File CSV gốc tải về (Kaggle e-commerce / online retail)
+│   ├── raw/                        # File CSV gốc tải về từ Kaggle
+│   │   └── olist_customers_dataset.csv # Dataset khách hàng E-commerce thực tế Olist (~99,442 dòng)
 │   └── processed/                  # File dữ liệu sau khi làm sạch và thêm features
+│       └── cleaned_sales_data.csv  # Dữ liệu sạch kèm đầy đủ 5 nhóm đặc trưng
 ├── notebooks/                      # Thử nghiệm tương tác và báo cáo từng bước
 │   ├── 01_exploratory_data_analysis.ipynb              # 1. EDA, phân bố target, tương quan
 │   ├── 02_preprocessing_and_feature_engineering.ipynb # 2. Làm sạch & tạo đặc trưng
@@ -242,4 +251,40 @@ sales_predictor/
    - Khi lưu mô hình (`persistence.py`), lưu cả bộ tiền xử lý (`ColumnTransformer` / `Pipeline`) đi kèm mô hình. Nhờ đó khi có dữ liệu mới ở phần Deployment, dữ liệu tự động được scale và encode tương thích hoàn toàn mà không sợ lệch số chiều.
 3. **Phân tích lỗi (Error Analysis):**
    - Không chỉ dừng ở báo cáo MSE/RMSE, module `error_analysis.py` tự động trích xuất các sản phẩm bị dự đoán lệch nhiều nhất để rút kinh nghiệm và tinh chỉnh features.
+
+---
+
+## 7. Hướng dẫn chạy dự án (Quickstart)
+
+### 7.1. Cài đặt môi trường
+Khởi tạo môi trường ảo và cài đặt các thư viện cần thiết:
+```bash
+python -m venv .venv
+# Trên Windows PowerShell:
+.venv\Scripts\Activate.ps1
+# Hoặc trên Linux/macOS:
+source .venv/bin/activate
+
+pip install -r requirements.txt
+```
+
+### 7.2. Chạy toàn bộ quy trình tự động (Pipeline End-to-End)
+Thực thi toàn bộ luồng từ nạp dữ liệu Olist, tiền xử lý, huấn luyện 4 mô hình, đánh giá, phân tích lỗi đến dự đoán 3 kịch bản:
+```bash
+python main.py
+```
+
+### 7.3. Chạy kiểm thử tự động (Unit Tests)
+```bash
+pytest -v
+```
+
+### 7.4. Thử nghiệm tương tác trên Jupyter Notebooks
+Mở và chạy lần lượt 5 notebook trong thư mục `notebooks/`:
+1. `01_exploratory_data_analysis.ipynb`: Khám phá dữ liệu khách hàng Olist & phân bố doanh số
+2. `02_preprocessing_and_feature_engineering.ipynb`: Tiền xử lý dữ liệu và tạo 5 nhóm đặc trưng
+3. `03_model_training_and_comparison.ipynb`: Huấn luyện và so sánh 4 mô hình hồi quy
+4. `04_hyperparameter_tuning_and_error_analysis.ipynb`: Tối ưu siêu tham số GridSearchCV & đồ thị phần dư
+5. `05_scenario_prediction_and_demo.ipynb`: Demo dự đoán 3 kịch bản kinh doanh thực tế (New Product, Marketing, Seasonal Promo)
+
 

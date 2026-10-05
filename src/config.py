@@ -118,7 +118,9 @@ NUMERICAL_COLS = [
 # ==========================================
 # 3. THAM SỐ HUẤN LUYỆN (MODEL PARAMETERS)
 # ==========================================
-TEST_SIZE = 0.2
+TRAIN_SIZE = 0.8
+VAL_SIZE = 0.1
+TEST_SIZE = 0.1
 RANDOM_STATE = 42
 CV_FOLDS = 5
 USE_TEMPORAL_SPLIT = True  # True: chia theo mốc thời gian, False: random split
