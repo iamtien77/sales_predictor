@@ -22,6 +22,14 @@ results/figures/*
 results/metrics/*
 !results/metrics/.gitkeep
 
+# Notebook Results and Outputs
+notebooks/results/saved_models/*
+!notebooks/results/saved_models/.gitkeep
+notebooks/results/figures/*
+!notebooks/results/figures/.gitkeep
+notebooks/results/metrics/*
+!notebooks/results/metrics/.gitkeep
+
 # Jupyter Notebook Checkpoints
 .ipynb_checkpoints/
 */.ipynb_checkpoints/

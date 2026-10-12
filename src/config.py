@@ -19,8 +19,26 @@ SAVED_MODELS_DIR = RESULTS_DIR / "saved_models"
 FIGURES_DIR = RESULTS_DIR / "figures"
 METRICS_DIR = RESULTS_DIR / "metrics"
 
+# Đường dẫn kết quả thực nghiệm dành riêng cho Jupyter Notebooks
+NOTEBOOKS_DIR = BASE_DIR / "notebooks"
+NOTEBOOK_RESULTS_DIR = NOTEBOOKS_DIR / "results"
+NOTEBOOK_SAVED_MODELS_DIR = NOTEBOOK_RESULTS_DIR / "saved_models"
+NOTEBOOK_FIGURES_DIR = NOTEBOOK_RESULTS_DIR / "figures"
+NOTEBOOK_METRICS_DIR = NOTEBOOK_RESULTS_DIR / "metrics"
+
 # Đảm bảo các thư mục luôn tồn tại
-for path in [RAW_DATA_DIR, PROCESSED_DATA_DIR, RESULTS_DIR, SAVED_MODELS_DIR, FIGURES_DIR, METRICS_DIR]:
+for path in [
+    RAW_DATA_DIR,
+    PROCESSED_DATA_DIR,
+    RESULTS_DIR,
+    SAVED_MODELS_DIR,
+    FIGURES_DIR,
+    METRICS_DIR,
+    NOTEBOOK_RESULTS_DIR,
+    NOTEBOOK_SAVED_MODELS_DIR,
+    NOTEBOOK_FIGURES_DIR,
+    NOTEBOOK_METRICS_DIR,
+]:
     path.mkdir(parents=True, exist_ok=True)
 
 # Tên file dataset mặc định
