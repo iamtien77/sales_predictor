@@ -24,7 +24,8 @@ for path in [RAW_DATA_DIR, PROCESSED_DATA_DIR, RESULTS_DIR, SAVED_MODELS_DIR, FI
     path.mkdir(parents=True, exist_ok=True)
 
 # Tên file dataset mặc định
-RAW_DATA_FILE = RAW_DATA_DIR / "olist_customers_dataset.csv"
+RAW_DATA_FILE = RAW_DATA_DIR / "olist_merged_sales_dataset.csv"
+RAW_CUSTOMERS_FILE = RAW_DATA_DIR / "olist_customers_dataset.csv"
 PROCESSED_DATA_FILE = PROCESSED_DATA_DIR / "cleaned_sales_data.csv"
 
 # ==========================================
