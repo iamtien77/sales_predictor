@@ -38,4 +38,13 @@ notebooks/results/metrics/*
 .vscode/
 .idea/
 *.swp
-docs/
+# Documentation
+docs/*
+!docs/algorithms/
+!docs/algorithms/**
+!docs/ML project_ Predicting Product Sales.pdf
+
+logs/
+# Testing
+.pytest_cache/
+.pytest_temp/
