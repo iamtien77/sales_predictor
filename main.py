@@ -499,7 +499,13 @@ def step_10_persistence_and_demo(
     """BƯỚC 10: Đóng gói Model Persistence & Demo 3 Kịch bản Kinh doanh"""
     print_section_header("Đóng gói Persistence & Demo 3 Kịch bản Kinh doanh", step_num=10)
 
-    # 1. Đóng gói Artifact
+    # Fixed candidate; temporal split purges labels overlapping Test origins.
+    from src.evaluation.cold_start import train_and_evaluate
+    cold_start_model, cold_eval_df, cold_manifest = train_and_evaluate()
+    print("First-sale seven-day proxy (not listing-date cold start):")
+    print(cold_eval_df.to_string(index=False))
+
+    # 2. Đóng gói Artifact
     config.SAVED_MODELS_DIR.mkdir(parents=True, exist_ok=True)
     config.NOTEBOOK_SAVED_MODELS_DIR.mkdir(parents=True, exist_ok=True)
     target_pkl = config.SAVED_MODELS_DIR / "best_sales_model.pkl"
@@ -512,18 +518,20 @@ def step_10_persistence_and_demo(
         "synthetic_marketing_used": False,
         "best_params": best_params,
         "n_features": int(X_test.shape[1]),
+        "has_cold_start_model": cold_start_model is not None,
+        "cold_start_evaluation": cold_manifest,
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
     }
-    persistence.save_artifacts(pipeline=pipeline, model=best_model, filepath=target_pkl, metadata=metadata)
-    persistence.save_artifacts(pipeline=pipeline, model=best_model, filepath=nb_target_pkl, metadata=metadata)
+    persistence.save_artifacts(pipeline=pipeline, model=best_model, filepath=target_pkl, metadata=metadata, cold_start_model=cold_start_model)
+    persistence.save_artifacts(pipeline=pipeline, model=best_model, filepath=nb_target_pkl, metadata=metadata, cold_start_model=cold_start_model)
     logger.info(f"💾 Đã đóng gói thành công Artifact vào: {target_pkl}")
 
-    # 2. Demo kiểm chứng mẫu Test
+    # 3. Demo kiểm chứng mẫu Test
     print("\n► DEMO 1: KIỂM CHỨNG SUY LUẬN TRÊN 5 MẪU TẬP TEST SET (ĐƠN VỊ: BRL):")
     demo_df = predictor.demo_prediction(model=best_model, pipeline=pipeline, X_test=X_test, y_test=y_test, n_samples=5)
     print(demo_df.to_string(index=False))
 
-    # 3. Kịch bản 1: Ra mắt Sản phẩm Mới
+    # 4. Kịch bản 1: Ra mắt Sản phẩm Mới
     print("\n► DEMO 2: KỊCH BẢN RA MẮT SẢN PHẨM MỚI (NEW PRODUCT LAUNCH):")
     new_spec = {
         "product_category_name": "informatica_acessorios",
@@ -532,9 +540,18 @@ def step_10_persistence_and_demo(
         "product_weight_g": 650.0,
         "ad_spend": 350.0
     }
-    forecast = predictor.predict_scenario_new_product(product_spec=new_spec, model=best_model, pipeline=pipeline)
+    forecast = predictor.predict_scenario_new_product(
+        product_spec=new_spec,
+        model=best_model,
+        pipeline=pipeline,
+        cold_start_model=cold_start_model
+    )
     for k, v in forecast.items():
         print(f"  • {k:<25}: {v}")
+    
+    # Minh họa mô hình Cold-Start chuyên biệt cho tuần mở bán
+    cold_start_res = predictor.predict_cold_start_product(new_spec, cold_start_model=cold_start_model)
+    print(f"  • {'cold_start_launch_sales':<25}: {cold_start_res['predicted_launch_sales_BRL']} BRL ({cold_start_res['estimated_launch_units']} sản phẩm) - Động cơ: {cold_start_res['model_engine']}")
 
     # 4. Kịch bản 2: Biến thiên Ngân sách Marketing
     print("\n► DEMO 3: KỊCH BẢN BIẾN THIÊN NGÂN SÁCH MARKETING (AD SPEND SCALING):")
@@ -545,6 +562,17 @@ def step_10_persistence_and_demo(
         pipeline=pipeline
     )
     print(mkt_df.to_string(index=False))
+
+    print("\n► DEMO 3.1: MÔ PHỎNG PHẢN HỒI TIẾP THỊ KINH TẾ LƯỢNG (MARKETING UPLIFT & ROAS):")
+    mkt_uplift_df = predictor.simulate_marketing_response(
+        base_product=new_spec,
+        ad_spend_levels=[100.0, 500.0, 1000.0, 2000.0, 5000.0],
+        model=best_model,
+        pipeline=pipeline,
+        elasticity=0.15
+    )
+    cols_to_show = ["Ad_Spend_BRL", "Predicted_Sales_BRL", "Incremental_Sales_BRL", "Sales_Growth_%", "ROAS", "Marketing_ROI_%"]
+    print(mkt_uplift_df[cols_to_show].to_string(index=False))
 
     # 5. Kịch bản 3: Bảng tính Doanh thu theo Giả định Sản lượng (Discount Scenario Calculation)
     print("\n► DEMO 4: BẢNG TÍNH DOANH THU THEO GIẢ ĐỊNH SẢN LƯỢNG (DISCOUNT SCENARIO):")
@@ -620,7 +648,10 @@ def main() -> None:
     selected_model = candidates[selected_name]
     selected_params = best_params if selected_name == "Tuned Model" else {}
     selected_params = {**selected_params, "selected_model": selected_name,
-                       "validation_rmse_brl": val_scores[selected_name]}
+                       "validation_rmse_brl": val_scores[selected_name],
+                       "training_mode": "fast" if args.fast_mode else "full",
+                       "skip_tuning": args.skip_tuning,
+                       "train_rows_available": int(X_train.shape[0])}
     logger.info(f"Chọn mô hình bằng Validation RMSE (BRL): {selected_name} | {val_scores[selected_name]:.4f}")
 
     # Bước 8: Đánh giá độc lập trên Test 10% & Xuất biểu đồ so sánh
@@ -648,6 +679,8 @@ def main() -> None:
         y_test=y_test
     )
 
+    from src.evaluation.reporting import sync_readme
+    sync_readme()
     total_time = time.time() - t_global_start
     print("\n" + "#" * 80)
     print(f"🎉 TOÀN BỘ PIPELINE ĐÃ HOÀN TẤT THÀNH CÔNG RỰC RỠ TRONG {total_time:.2f} GIÂY! 🎉".center(80))
