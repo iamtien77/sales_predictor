@@ -2,7 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+.pytest_*
 # C environments
 .env
 .venv
@@ -43,7 +43,8 @@ docs/*
 !docs/algorithms/
 !docs/algorithms/**
 !docs/ML project_ Predicting Product Sales.pdf
-
+!docs/description_for_AI_working/
+!docs/description_for_AI_working/**
 logs/
 # Testing
 .pytest_cache/
