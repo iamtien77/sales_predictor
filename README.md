@@ -3,7 +3,7 @@
 > **Dự án Môn học Máy (Machine Learning Project)**
 > **Phương pháp tiếp cận:** 100% Cài đặt Thuần túy From-Scratch bằng **NumPy** (Không dùng thư viện Scikit-Learn cho mô hình và tiền xử lý).
 > **Dữ liệu thực nghiệm:** Sàn thương mại điện tử Olist Brazil (~1.2 triệu mẫu sản phẩm–tuần) từ bộ dữ liệu công khai [Brazilian E-Commerce Public Dataset by Olist (Kaggle)](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce).
-> **Trạng thái kiểm thử:** 67/67 unit & integration tests đạt chuẩn (`pytest`).
+> **Trạng thái kiểm thử:** 94/94 unit & integration tests pass (21/10/2026).
 
 ---
 
@@ -44,7 +44,7 @@ Dự án tuân thủ nghiêm ngặt nguyên tắc học thuật: **Nói KHÔNG v
 1. **Linear Regression (`LinearRegressionFromScratch`):**
    - Bộ giải mặc định OLS Normal Equation giải tích: $w = (X^T X + \alpha I)^{-1} X^T y$, sử dụng điều chuẩn Ridge nhỏ $\alpha_{\text{ridge}} = 10^{-5}$ và thuật toán giải ma trận giả nghịch đảo Moore-Penrose `np.linalg.pinv` trên ma trận Gram thưa, đảm bảo tính ổn định số học và chống suy biến.
    - Hỗ trợ bộ giải tùy chọn Gradient Descent lặp (`solver='gradient_descent'`) để đối chiếu quá trình hội tụ hàm mất mát MSE.
-   - Tích hợp cơ chế **Adaptive Numerical Clamping** chặn biên thích ứng trong không gian log ($\hat{y} \le \log(1 + 1.5 \times y_{\max})$), ngăn chặn triệt để hiện tượng tràn số vô cực IEEE-754 khi nghịch đảo hàm mũ $\exp(\hat{y}) - 1$.
+   - Kẹp dự báo log trong `[min_train - 0.5*span, max_train + 0.5*span]`, với `span = max(1, max_train - min_train)`. Đây là giới hạn số học theo Train, không bảo đảm sai số tiền tệ thấp.
 2. **Decision Tree Regressor (`DecisionTreeRegressorFromScratch`):**
    - Xây dựng cây hồi quy nhị phân đệ quy dựa trên tiêu chuẩn Giảm phương sai (Variance Reduction):
      $$
@@ -64,9 +64,24 @@ Dự án tuân thủ nghiêm ngặt nguyên tắc học thuật: **Nói KHÔNG v
    - Kiến trúc 2 giai đoạn chuyên trị phân phối thưa zero-inflated:
      - **Giai đoạn 1 (Classification):** Cây quyết định phân loại dự báo xác suất tuần đó sản phẩm có phát sinh doanh số hay không $\Pr(y > 0 \mid x)$.
      - **Giai đoạn 2 (Positive Regression):** Cây quyết định hồi quy chỉ học trên các mẫu có phát sinh doanh thu dương ($y > 0$).
-     - **Công thức suy luận hợp nhất:** $\hat{y} = \Pr(y > 0 \mid x) \cdot \hat{y}_{\text{pos}}$, nhân trực tiếp xác suất phát sinh giao dịch với dự báo doanh thu điều kiện dương, giải quyết triệt để vấn đề mất cân bằng giữa tuần có bán và tuần không bán.
+     - **Công thức suy luận:** $\hat{y} = \Pr(y > 0 \mid x) \cdot \mathrm{expm1}(\hat{y}_{log,pos})$. Nhánh dương học trên log nên kết quả không mặc nhiên là kỳ vọng số học hoặc trung vị của doanh thu.
 
-### 2.2. Bốn Mô hình Đối chứng Cơ sở (Baselines)
+### 2.2. Động Cơ Dự Báo Kịch Bản Mở Rộng (Scenario-Based Engines From-Scratch)
+
+Bên cạnh dự báo tuần, hệ thống có một thí nghiệm proxy sau lần bán đầu và một công cụ mô phỏng marketing theo giả định:
+
+1. **Cold-Start Product Regressor (`ColdStartProductRegressor`):**
+   - Ước lượng doanh thu 7 ngày từ giao dịch đầu, bao gồm giao dịch đầu đã biết; không phải kiểm chứng trước ngày niêm yết.
+   - Năm thuộc tính số: giá giao dịch đầu, khối lượng, số ảnh, độ dài tên và mô tả; thêm danh mục được mã hóa từ Train.
+   - Chia theo thời gian, loại nhãn Train vượt mốc Test và cửa sổ chưa đủ ngày. Đối chứng cả trung vị danh mục và `sales = first_price`; xem kết quả sinh tự động ở mục 4.
+2. **Marketing Diminishing Returns Response Model (`simulate_marketing_response`):**
+   - Động cơ kinh tế lượng mô phỏng phản hồi doanh số gia tăng theo ngân sách quảng cáo dựa trên hàm Log-Response chuẩn mực:
+     $$
+     \text{Uplift Factor} = 1.0 + \beta_{\text{ad}} \cdot \ln\left(1 + \frac{\text{Ad Spend}}{S_{ref}}\right)
+     $$
+   - Hệ số và ngân sách tham chiếu là giả định người dùng, chưa học từ chiến dịch. ROI sử dụng biên lợi nhuận gộp giả định; không phải dự báo lợi nhuận thực tế.
+
+### 2.3. Bốn Mô hình Đối chứng Cơ sở (Baselines)
 
 Nhằm chứng minh giá trị gia tăng thực sự của các thuật toán phức tạp, hệ thống đối chiếu với 4 mốc Baseline chuẩn mực:
 
@@ -75,7 +90,7 @@ Nhằm chứng minh giá trị gia tăng thực sự của các thuật toán ph
 - **Log Mean Baseline (`MeanRegressorFromScratch`):** Dự báo trung bình nhãn trong không gian log.
 - **Previous Week Baseline (`PreviousWeekRegressorFromScratch`):** Mô hình quán tính (Persistence), lấy doanh thu tuần trước làm dự báo cho tuần này.
 
-### 2.3. Pipeline Tiền Xử lý Thuần NumPy
+### 2.4. Pipeline Tiền Xử lý Thuần NumPy
 
 - `CustomImputer`: Điền giá trị khuyết thiếu (Median cho biến số, Mode cho biến phân loại) fit duy nhất trên tập Train.
 - `CustomOneHotEncoder`: Mã hóa các biến danh mục sang ma trận nhị phân thưa (Sparse CSR Matrix), tự động gán vector 0 cho các nhãn mới xuất hiện ở Test.
@@ -110,71 +125,69 @@ Tất cả các đặc trưng đầu vào đều tuân thủ nguyên tắc: **Ch
 
 ---
 
-## 🏆 4. Kết quả Thực nghiệm & Bảng So sánh Mô hình
+## 🏆 4. Kết quả thực nghiệm hiện tại
 
-Mô hình được huấn luyện trên **655,066 dòng Train**, tối ưu siêu tham số trên **249,399 dòng Validation**, và kiểm định độc lập trên **293,717 dòng Test** (Phân chia Temporal Split 80/10/10 theo dòng thời gian).
+<!-- GENERATED RESULTS: python -m src.evaluation.reporting -->
 
-### 4.1. Bảng Đánh giá Độc lập trên Tập Test (Thang đo Tiền tệ BRL)
+Các bảng dưới được sinh trực tiếp từ CSV trong `results/metrics` và artifact triển khai.
+Chạy `.venv/Scripts/python.exe -m src.evaluation.reporting` để đồng bộ sau thực nghiệm.
+Mô hình tuần được chọn bằng Validation: **Two-Stage Hurdle**, Validation RMSE **59.2188 BRL**.
+Chế độ huấn luyện tuần: **Không được lưu trong lần chạy cũ; không suy đoán full/fast**. Thời điểm huấn luyện tuần được ghi trong metadata: `2026-10-20 22:25:45`.
+Đây là snapshot của lần chạy đã lưu, không trộn số liệu từ lần chạy khác.
 
-> **Mô hình artifact được chọn (`best_sales_model.pkl`):** `Two-Stage Hurdle` (được lựa chọn dựa trên tiêu chuẩn Validation RMSE: 55.94 BRL; đạt RMSE thấp nhất 49.23 BRL và $R^2$ cao nhất +0.1148 trên tập Test độc lập).
+### 4.1. Dự báo sản phẩm–tuần (Test, BRL)
 
-| Hạng | Mô hình                                      |    MSE (BRL²)    |   MAE (BRL)   |   RMSE (BRL)   |   $R^2$ Score   |      WAPE      | Chi phí / SP (BRL) | Fit Time (s) | Đánh giá kỹ thuật                                                                         |
-| :---: | :--------------------------------------------- | :----------------: | :------------: | :-------------: | :---------------: | :------------: | :-----------------: | :----------: | :--------------------------------------------------------------------------------------------- |
-|  🥇  | **Two-Stage Hurdle (Selected Artifact)** | **2,423.73** |      8.44      | **49.23** | **+0.1148** |      1.97      |        44.80        |    34.92s    | **Chiến thắng Validation; RMSE thấp nhất & R² cao nhất toàn tập**                |
-|  🥈  | **Tuned Decision Tree**                  |      2,541.22      |      4.30      |      50.41      |      +0.0719      |      1.00      |   **40.62**   |      —      | **Mô hình đơn tốt nhất sau tuning; cân bằng giữa MAE và thời gian suy luận** |
-|  🥉  | Decision Tree (Default)                        |      2,615.33      |      4.33      |      51.14      |      +0.0449      |      1.01      |        41.26        |    33.50s    | Nhanh, phù hợp phân phối thưa                                                             |
-|   4   | Gradient Boosting                              |      2,708.22      |      4.42      |      52.04      |      +0.0109      |      1.03      |        42.49        |   308.18s   | Khả năng tổng quát hóa tốt trên tập xác định                                        |
-|   5   | Random Forest                                  |      2,725.33      |      4.43      |      52.20      |      +0.0047      |      1.04      |        42.69        |    92.48s    | Ổn định phương sai, chống quá khớp (overfitting)                                       |
-|   6   | Revenue Mean Baseline                          |      2,752.28      |     11.90     |      52.46      |      -0.0052      |      2.78      |        56.35        |    0.00s    | Cận tối ưu lý thuyết của hàm Loss MSE                                                   |
-|   7   | Mean Baseline (Log space)                      |      2,754.52      |      4.50      |      52.48      |      -0.0060      |      1.05      |        43.19        |    0.00s    | Baseline trung bình nhãn log                                                                 |
-|   8   | Zero Baseline                                  |      2,756.48      | **4.28** |      52.50      |      -0.0067      | **1.00** |        42.79        |    0.00s    | **MAE thấp nhất toàn tập (tối ưu hóa tại median = 0 của phân phối thưa)**    |
-|   9   | Previous Week Baseline                         |      5,683.53      |      9.08      |      75.39      |      -1.0757      |      2.12      |        42.45        |    0.00s    | Baseline quán tính trễ 1 tuần                                                              |
-|  10  | Linear Regression (Clamped)                    |   30,378,515.85   |     44.38     |    5,511.67    |    -11,093.46    |     10.37     |       120.70       |    0.57s    | Kẹp chặn số mũ thích ứng, loại trừ nổ số ngoại lai                                  |
+| Model                  | MSE           | MAE     | RMSE      | R2          | WAPE    | Cost_Per_Item_BRL | Fit Time (s) | Target_Scale |
+| ---------------------- | ------------- | ------- | --------- | ----------- | ------- | ----------------- | ------------ | ------------ |
+| Two-Stage Hurdle       | 2585.0102     | 8.6032  | 50.8430   | 0.0559      | 2.0105  | 45.4800           | 0.3600       | BRL          |
+| Decision Tree          | 2674.6362     | 4.4362  | 51.7169   | 0.0232      | 1.0367  | 41.6627           | 0.7000       | BRL          |
+| Tuned Model            | 2697.7820     | 4.4039  | 51.9402   | 0.0148      | 1.0291  | 42.4060           | 0.0000       | BRL          |
+| Random Forest          | 2725.0833     | 4.4273  | 52.2023   | 0.0048      | 1.0346  | 42.6747           | 0.7700       | BRL          |
+| Gradient Boosting      | 2733.2544     | 4.4465  | 52.2805   | 0.0018      | 1.0391  | 42.8263           | 2.0400       | BRL          |
+| Revenue Mean Baseline  | 2752.2779     | 11.8955 | 52.4622   | -0.0052     | 2.7798  | 56.3489           | 0.0000       | BRL          |
+| Mean Baseline          | 2754.5202     | 4.5026  | 52.4835   | -0.0060     | 1.0522  | 43.1895           | 0.0000       | BRL          |
+| Zero Baseline          | 2756.4820     | 4.2792  | 52.5022   | -0.0067     | 1.0000  | 42.7919           | 0.0000       | BRL          |
+| Previous Week Baseline | 5683.5250     | 9.0765  | 75.3892   | -1.0757     | 2.1211  | 42.4533           | 0.0000       | BRL          |
+| Linear Regression      | 29169475.0415 | 76.8349 | 5400.8772 | -10651.9064 | 17.9555 | 185.2979          | 0.0500       | BRL          |
 
-### 4.2. Nhận xét Kỹ thuật & Bản chất Thống kê
+RMSE và MAE phản ánh các mục tiêu khác nhau; không suy ra lợi ích tồn kho chỉ từ R².
+Chi phí là điểm phạt giả định trên sai lệch doanh thu, không phải chi phí vận hành được đo thực tế.
+Chưa có đánh giá riêng precision/recall cho phát hiện tuần nhu cầu đột biến.
 
-1. **Two-Stage Hurdle dẫn đầu về RMSE và khả năng giải thích phương sai ($R^2$):** Bóc tách bài toán thành 2 bước (phân loại xác suất phát sinh đơn $\Pr(y > 0 \mid x)$ + hồi quy độ lớn doanh số dương) giúp mô hình giảm thiểu sai số bình phương ở các đơn hàng lớn, đưa $R^2$ lên mức kỷ lục **+0.1148** và hạ RMSE xuống thấp nhất **49.23 BRL** (giảm 6.2% so với Zero Baseline).
-2. **Zero Baseline đạt MAE thấp nhất (4.28 BRL) do phân phối thưa (Zero-Inflated):** Vì 97.4% mẫu có doanh số bằng 0, điểm trung vị của phân phối là 0. Do tính chất toán học của hàm mất mát L1 (MAE tối ưu tại Median), Zero Baseline đạt MAE thấp nhất toàn diện. Trong các mô hình máy học, Tuned Decision Tree (`max_depth=8`) bám sát nhất với MAE **4.30 BRL** và chi phí vận hành đơn mô hình tối ưu (**40.62 BRL/sản phẩm**).
-3. **Các họ mô hình cây đánh bại các Baselines về mặt phương sai:** Cả Decision Tree, Random Forest và Gradient Boosting đều đạt $R^2 > 0$ và vượt trội so với các mốc Baseline lý thuyết (Mean, Log-Mean, Previous Week).
-4. **Cơ chế Adaptive Numerical Clamping kiểm soát Linear Regression:** Trên dữ liệu ma trận thưa 89 chiều, cơ chế kẹp biên thích ứng ($\hat{y} \le \log(1 + 1.5 \times y_{\max})$) giúp hàm mũ nghịch đảo $\exp(w^T x) - 1$ không bị tràn số vô cực IEEE-754 ($10^{16}$ BRL ở phiên bản cũ), kiểm soát rủi ro tính toán số học trong thực nghiệm.
+### 4.2. Proxy bảy ngày từ giao dịch đầu tiên
 
-### 4.3. Đánh giá Nghiệp vụ Phân nhóm & Sai lệch Thiếu/Thừa (Under/Over-forecast Analysis)
+Nguồn: `cold_start_evaluation.csv`, quy trình: `cold_start_manifest.json`.
+Train: **23428** sản phẩm; Test: **8110**;
+loại **483** mẫu Train có cửa sổ nhãn vượt mốc **2018-04-24T00:00:00**.
+Giá là giá giao dịch đầu tiên. Mọi cửa sổ nhãn phải có đủ bảy ngày quan sát.
 
-Nhằm làm rõ hành vi mô hình trong các kịch bản chuỗi cung ứng thực tế, bảng dưới đây phân tách hiệu năng theo 3 nhóm dữ liệu và đo lường mức độ dự báo thiếu (nguy cơ hụt hàng) so với dự báo thừa (nguy cơ ứ đọng tồn kho):
+| Model                           | MAE_BRL  | RMSE_BRL | R2_Score | Test_Count |
+| ------------------------------- | -------- | -------- | -------- | ---------- |
+| CategoryMedianColdStartBaseline | 126.6543 | 313.9562 | 0.0022   | 8110       |
+| SingleUnitPriceBaseline         | 23.0145  | 120.9134 | 0.8520   | 8110       |
+| ColdStartProductRegressor       | 39.7939  | 135.4682 | 0.8142   | 8110       |
 
-| Phân nhóm dữ liệu | Số mẫu | RMSE (BRL) | MAE (BRL) | $R^2$ Score | Dự báo thiếu (Underforecast BRL) | Dự báo thừa (Overforecast BRL) | Độ lệch tổng (Bias BRL) | Phạt 1:1 | Phạt 2:1 | Phạt 5:1 |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Toàn bộ sản phẩm–tuần** | 293,717 | 49.23 | 8.44 | +0.1148 | 1,024,703.46 | 1,455,039.99 | +430,336.53 | 8.44 | 11.93 | 22.40 |
-| **Tuần có doanh thu ($y > 0$)** | 7,659 | 289.56 | 136.25 | -0.0643 | 1,024,703.46 | 18,865.61 | -1,005,837.86 | 136.25 | 270.04 | 671.42 |
-| **Tuần không bán ($y = 0$)** | 286,058 | 15.61 | 5.02 | N/A (Var=0) | 0.00 | 1,436,174.38 | +1,436,174.38 | 5.02 | 5.02 | 5.02 |
+So sánh cả baseline danh mục và baseline một sản phẩm (`sales = first_price`).
+Không chọn mô hình bằng Test: cây với tham số cố định là ứng viên thực nghiệm được lưu,
+không được gọi là tốt nhất nếu baseline thắng. Tỷ lệ Test chỉ bán một đơn vị: **85.47%**.
 
-> **Nhận xét chuỗi cung ứng:** Ở các tuần không phát sinh đơn hàng ($y = 0$, chiếm 97.4% tập Test), mô hình có sai số tuyệt đối rất nhỏ (MAE = 5.02 BRL). Ở các tuần phát sinh nhu cầu lớn, mô hình dự báo thận trọng giúp hạn chế tối đa chi phí tồn kho trong môi trường bán lẻ trực tuyến.
+Giới hạn: mốc bắt đầu là lần bán đầu, không phải ngày niêm yết; target bao gồm giao dịch đầu đã biết.
+Không có sản phẩm chưa bán; metadata sản phẩm và trạng thái delivered là snapshot cuối,
+chưa có lịch sử để xác minh chúng sẵn có tại thời điểm dự báo. Chưa chứng minh cold-start trước bán.
 
-### 4.4. Biện luận Khoa học về Đánh đổi (Trade-offs) & Bản chất Lợi ích Mô hình
-
-Một đánh giá khoa học trung thực đòi hỏi phải nhìn nhận đúng sự đánh đổi giữa các chỉ số thay vì phóng đại lợi ích nghiệp vụ:
-
-1. **Đối chiếu Điểm Phạt Tuyến Tính L1: Zero Baseline Thắng Thế**
-
-   - Zero Baseline luôn dự báo bằng 0, nghĩa là $\text{Overforecast} = 0$ và toàn bộ sai số là $\text{Underforecast} = \text{MAE} = 4.2792\text{ BRL}$.
-   - Khi áp dụng thang phạt bất đối xứng (Asymmetric Linear Penalty):
-     - **Tỷ lệ phạt thiếu : thừa = 1 : 1:** Zero Baseline đạt **4.28 BRL** vs Two-Stage Hurdle là **8.44 BRL** (Zero Baseline thắng).
-     - **Tỷ lệ phạt thiếu : thừa = 2 : 1:** Zero Baseline đạt $2 \times 4.2792 = \mathbf{8.56\text{ BRL}}$ vs Two-Stage Hurdle là **11.93 BRL** (Zero Baseline thắng).
-     - **Tỷ lệ phạt thiếu : thừa = 5 : 1:** Zero Baseline đạt $5 \times 4.2792 = \mathbf{21.40\text{ BRL}}$ vs Two-Stage Hurdle là **22.40 BRL** (Zero Baseline vẫn thắng).
-   - *Nguyên nhân:* Two-Stage Hurdle dự báo xác suất dương nhỏ ở 97.4% số tuần không bán, tích lũy tới **1,455,040 BRL** tiền dự báo thừa. Chi phí thừa này cộng dồn trên tập dữ liệu thưa quy mô lớn đã triệt tiêu lợi thế giảm thiếu hàng khi tính theo hàm phạt tuyến tính L1. Do đó, **không thể kết luận mô hình Hurdle tối ưu chi phí tồn kho tuyến tính hơn baseline 0**.
-2. **Lợi Ích Thực Sự của Two-Stage Hurdle: Tối Ưu Hóa Sai Số Bình Phương (L2 Loss) & $R^2$**
-
-   - Giá trị kỹ thuật thực chất của Two-Stage Hurdle nằm ở **RMSE (49.23 vs 52.50 BRL, giảm 6.2%)** và **$R^2$ (+0.1148 vs -0.0067)**.
-   - RMSE phạt theo bình phương độ lệch $(y - \hat{y})^2$. Khi một đơn hàng lớn 1,000 BRL phát sinh, Zero Baseline hoàn toàn bất lực và chịu khoản phạt $(1000)^2 = 1,000,000$. Two-Stage Hurdle dự báo nắm bắt được một phần nhu cầu sẽ giảm mạnh các tổn thất bình phương này.
-   - Trong môi trường chuỗi cung ứng, mô hình Hurdle đóng vai trò là một **bộ cảnh báo nhu cầu bất chợt (Demand Spike Detector)** nhằm hạn chế các cú sốc thiếu hàng nghiêm trọng ở các sản phẩm chủ lực, thay vì tối ưu hóa điểm số MAE trung bình.
-3. **Phân tích Thực nghiệm về Hồi quy Tuyến tính (Linear Regression)**
-
-   - Trên không gian 89 chiều ma trận thưa, phương pháp OLS Normal Equation với điều chuẩn $\alpha_{\text{ridge}} = 10^{-5}$ trong không gian log gặp bất ổn định số học khi chuyển đổi ngược qua hàm mũ $\text{expm1}$. Một số ít ngoại lai dự báo log dương hơi cao bị khuếch đại phi tuyến thành hàng triệu BRL, dẫn đến $\text{RMSE} = 5,511.67\text{ BRL}$ và $R^2$ âm nặng.
-   - Kết quả này phản ánh rằng việc tối ưu hóa MSE trên không gian log không đồng nghĩa với việc kiểm soát sai số trên thang đo tiền tệ đối với mô hình tham số OLS, làm nổi bật tính ổn định của các cấu trúc cây phân vùng cục bộ trong thực nghiệm cụ thể này.
-
----
+<!-- END GENERATED RESULTS -->
 
 ## 📁 5. Cấu trúc Thư mục Dự án
+
+**Kiểm chứng bổ sung:** [Báo cáo ba mốc thời gian và chẩn đoán mô hình](docs/algorithms/experimental_validation.md)
+ghi lại toàn bộ fold, đối chứng cây trên log/BRL, phân nhóm một/nhiều đơn vị và
+thí nghiệm Ridge/clipping cho Linear Regression. Chạy lại bằng
+`.venv/Scripts/python.exe -m src.evaluation.experiments --weekly`.
+Các thí nghiệm này không thay artifact triển khai và không được coi là Test mù mới.
+
+**Cold-start trước bán:** đã có [luồng nhận catalog thực](docs/algorithms/listing_data_contract.md)
+với nhãn 0 cho sản phẩm chưa bán. Chưa có dữ liệu bổ sung nên chưa có kết quả độ
+chính xác cho tình huống trước niêm yết; không suy diễn từ proxy sau lần bán đầu.
 
 ```
 lab_2 sales_predictor/
@@ -197,6 +210,7 @@ lab_2 sales_predictor/
 │   │   ├── tree.py                     # Cây quyết định DecisionTreeRegressorScratch (Variance Reduction)
 │   │   ├── ensemble.py                 # Mô hình tổ hợp RandomForestRegressorScratch & GradientBoosting
 │   │   ├── hurdle.py                   # Mô hình 2 giai đoạn TwoStageHurdleRegressor (Zero-inflated Sales)
+│   │   ├── cold_start.py               # Mô hình Cold-Start Launch Week & Category Median Baseline
 │   │   ├── regressors.py               # Facade giao diện hợp nhất các mô hình hồi quy
 │   │   ├── tuning.py                   # grid_search_from_scratch & tune_all trên Validation
 │   │   └── persistence.py              # Đóng gói và nạp mô hình (pickle serialization)
@@ -205,7 +219,7 @@ lab_2 sales_predictor/
 │   │   ├── error_analysis.py           # Phân tích phần dư & mổ xẻ Top 20 Worst Predictions
 │   │   └── visualization.py            # Vẽ 18 biểu đồ EDA & Đánh giá (Backend Agg chuẩn dpi=300)
 │   ├── deployment/                     # Module suy luận thực tế
-│   │   └── predictor.py                # predict_sales đơn/batch & mô phỏng 3 kịch bản kinh doanh
+│   │   └── predictor.py                # predict_sales đơn/batch, Cold-Start & Marketing Uplift
 │   └── utils/                          # Công cụ hỗ trợ
 │       └── logger.py                   # Hệ thống ghi nhật ký thực thi (Logging)
 │
@@ -223,14 +237,15 @@ lab_2 sales_predictor/
 │   ├── test_feature_engineering.py     # Kiểm thử các biến trễ, rolling, tương quan
 │   ├── test_models.py                  # Kiểm thử toán học 4 thuật toán From-Scratch & GridSearch
 │   ├── test_hurdle_and_metrics.py      # Kiểm thử mô hình Two-Stage Hurdle và hàm độ đo WAPE
+│   ├── test_cold_start_and_marketing.py# Kiểm thử mô hình Cold-Start và phản hồi Marketing phi tuyến
 │   ├── test_deployment.py              # Kiểm thử hàm dự báo và mô phỏng kịch bản
 │   ├── test_weekly_forecasting.py      # Kiểm thử toàn vẹn chuỗi thời gian tuần, zero-sales
 │   ├── test_requirement_updates.py     # Kiểm thử chống rò rỉ review, thang đo BRL, tuning 3 họ cây
 │   └── test_pipeline_contracts.py      # Kiểm thử bắt lỗi đầu vào không hợp lệ
 │
 ├── docs/                               # Tài liệu học thuật, nghiên cứu thuật toán & đề bài
-│   ├── algorithms/                     # Tài liệu chuyên sâu 5 thuật toán From-Scratch & 4 Baselines
-│   ├── description_for_AI_working/     # Hệ thống 42 tài liệu chi tiết quy trình AI & thực nghiệm
+│   ├── algorithms/                     # Tài liệu chuyên sâu 5 thuật toán From-Scratch, 4 Baselines, Cold-Start & Marketing
+│   ├── description_for_AI_working/     # Hệ thống 39 tài liệu chi tiết quy trình AI & thực nghiệm
 │   └── ML project_ Predicting Product Sales.pdf # Tệp đề bài & yêu cầu kỹ thuật dự án
 │
 ├── results/                            # Kết quả chính thức từ main.py pipeline
@@ -267,17 +282,23 @@ flowchart TD
 
 ## 🖥️ 7. Ứng dụng Web Tương tác Streamlit (`app.py`)
 
-Ứng dụng phục vụ việc nghiệm thu trực quan và bảo vệ đồ án trước hội đồng, cung cấp 3 chế độ tương tác khép kín:
+Ứng dụng phục vụ việc nghiệm thu trực quan và bảo vệ đồ án trước hội đồng, cung cấp 5 tab tương tác khép kín:
 
-1. **Dự báo Sản phẩm Đơn lẻ (Single Prediction Form):**
+1. **Dự báo Sản phẩm Đơn lẻ (Tab 1 - Single Prediction Form):**
    - Nhập ngày đầu tuần dự báo (bắt buộc là thứ Hai), danh mục hàng hóa, giá bán và các chỉ số lịch sử.
    - Trả về doanh thu dự báo tức thì (BRL) kèm các cảnh báo nghiệp vụ nếu tham số bất hợp lý.
-2. **Dự báo Hàng loạt (Batch CSV Upload):**
+2. **Dự báo Hàng loạt (Tab 2 - Batch CSV Upload):**
    - Hỗ trợ tải tệp CSV lên đến 10,000 dòng; tương thích với tệp mẫu thực nghiệm [sample_input.csv](<file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/docs/deployment/sample_input.csv>).
    - Xuất kết quả dự báo ra tệp CSV có UTF-8 BOM chuẩn tiếng Việt ([sample_output.csv](<file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/docs/deployment/sample_output.csv>)).
-3. **Mô phỏng Giả định Giảm giá (Discount Scenario Calculator):**
+3. **Mô phỏng Giả định Giảm giá (Tab 3 - Discount Scenario Calculator):**
    - Tính toán doanh thu giả định theo sản lượng và tỷ lệ chiết khấu ($0\% - 50\%$).
    - Tính toán sản lượng tối thiểu cần bán để giữ doanh thu tham chiếu, tách biệt hoàn toàn với mô hình ML để đảm bảo tính trung thực khoa học.
+4. **Proxy bảy ngày kể từ giao dịch đầu (Tab 4):**
+   - Nhập giá giao dịch đầu và thuộc tính sản phẩm; target bao gồm giao dịch đầu đã biết.
+   - Dùng artifact cây đã fit và hiển thị baseline một sản phẩm cạnh kết quả. Chưa kiểm chứng sản phẩm chưa bán; xem mục 4 cho kết quả đối chứng.
+5. **Mô Phỏng Tiếp Thị Kinh Tế Lượng (Tab 5 - Marketing Uplift & Diminishing Returns):**
+   - Mô phỏng độ nhạy ngân sách quảng cáo theo hàm phản hồi Log-Response chuẩn mực ($\beta_{\text{ad}} = 0.15$).
+   - Trực quan hóa đường cong bão hòa ngân sách, tính toán `Incremental_Sales_BRL`, `Sales_Growth_%`, `ROAS` và tỷ suất lợi nhuận ròng `Marketing_ROI_%`.
 
 *Xem tài liệu nghiệm thu triển khai chi tiết tại: [docs/deployment/README.md](<file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/docs/deployment/README.md>).*
 
@@ -323,18 +344,20 @@ pip install -r requirements.txt
 ```
 
 ### 9.3. Chuẩn bị Dữ liệu
+
 Dự án sử dụng bộ dữ liệu thương mại điện tử Olist Brazil:
+
 - **Nguồn Kaggle:** [Brazilian E-Commerce Public Dataset by Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)
 - Tải về và giải nén các tệp CSV gốc (`olist_orders_dataset.csv`, `olist_order_items_dataset.csv`, ...) vào thư mục `data/raw/` (hoặc sử dụng tệp đã ghép nối sẵn `data/raw/olist_merged_sales_dataset.csv`).
 
 ### 9.4. Các Lệnh Thực thi Chính
 
-| Mục đích                                           | Câu lệnh PowerShell                                         |
-| :---------------------------------------------------- | :------------------------------------------------------------ |
-| **Chạy toàn bộ Pipeline 10 bước**          | `.venv/Scripts/python.exe main.py`                          |
-| **Chạy chế độ kiểm tra nhanh (Fast Mode)** | `.venv/Scripts/python.exe main.py --fast-mode --skip-eda`   |
-| **Chạy Giao diện Web Streamlit**              | `.venv/Scripts/python.exe -m streamlit run app.py`          |
-| **Chạy toàn bộ 67 bài kiểm thử (Pytest)** | `.venv/Scripts/python.exe -m pytest -q -p no:cacheprovider` |
+| Mục đích                                           | Câu lệnh PowerShell                                       |
+| :---------------------------------------------------- | :---------------------------------------------------------- |
+| **Chạy toàn bộ Pipeline 10 bước**          | `.venv/Scripts/python.exe main.py`                        |
+| **Chạy chế độ kiểm tra nhanh (Fast Mode)** | `.venv/Scripts/python.exe main.py --fast-mode --skip-eda` |
+| **Chạy Giao diện Web Streamlit**              | `.venv/Scripts/python.exe -m streamlit run app.py`        |
+| **Chạy toàn bộ kiểm thử (Pytest)**         | `br`                                                      |
 
 *(Lưu ý: Nếu gặp vấn đề về quyền thư mục tạm trên Windows khi chạy `pytest`, thêm tham số `--basetemp=.pytest_temp`).*
 
@@ -342,10 +365,12 @@ Dự án sử dụng bộ dữ liệu thương mại điện tử Olist Brazil:
 
 ## ⚖️ 10. Tính Trung thực Khoa học & Giới hạn Đề tài
 
-Nhằm đảm bảo tính trung thực học thuật và chuẩn mực nghiên cứu kỹ thuật, dự án công khai các giới hạn sau:
+Nhằm đảm bảo tính trung thực học thuật và chuẩn mực nghiên cứu kỹ thuật, dự án công khai các giới hạn và giải pháp kiến trúc:
 
-1. **Dữ liệu Chiến dịch Marketing:** Bộ dữ liệu thương mại điện tử Olist là dữ liệu nhật ký giao dịch lịch sử, không chứa dữ liệu chiến dịch quảng cáo thực tế (chi phí theo sản phẩm, lượt hiển thị, click). Do đó, trong các hàm mô phỏng kịch bản, các chỉ số doanh số tăng thêm (*Uplift / Incremental Sales*) được trả về `NaN` trung thực, không tự ý gán số 0 hoặc số ngẫu nhiên để tránh ngộ nhận rằng mô hình đo được quan hệ nhân quả.
-2. **Sản phẩm Hoàn toàn Mới (*Cold Start*):** Các sản phẩm chưa từng bán trong quá khứ được đánh giá riêng với toàn bộ các đặc trưng trễ gán bằng 0. Để đánh giá chính xác tuần ra mắt, hệ thống cần bổ sung ngày niêm yết danh mục (*Catalog Listing Date*).
+1. **Dữ liệu Chiến dịch Marketing & Công Cụ Mô Phỏng Độ Nhạy:** Bộ dữ liệu thương mại điện tử Olist là dữ liệu nhật ký giao dịch lịch sử, không chứa dữ liệu chi phí quảng cáo thực tế theo sản phẩm. Nhằm giải quyết yêu cầu kịch bản Marketing của đề tài mà không ngụy tạo dữ liệu:
+   - *Chế độ mặc định (`mode="baseline_only"`):* Trả về doanh thu cơ sở và gán `NaN` trung thực cho các chỉ số doanh số tăng thêm (*Incremental Sales*), tránh ngộ nhận rằng ML học được quan hệ nhân quả trên dữ liệu không tồn tại.
+   - *Chế độ kinh tế lượng (`mode="calibrated_diminishing_returns"` & `simulate_marketing_response`):* Đóng vai trò là **Công cụ mô phỏng độ nhạy kinh tế lượng** (Econometric Sensitivity Simulation) dựa trên hàm phản hồi Log-Response với độ co giãn tiếp thị $\beta_{\text{ad}} = 0.15$, mô phỏng chính xác quy luật lợi biên giảm dần (*Diminishing Marginal Returns*) và tính toán `ROAS`, `Marketing_ROI_%` (có hỗ trợ biên lợi nhuận gộp `gross_margin`).
+2. **Giới hạn cold-start:** Olist thiếu ngày niêm yết và sản phẩm chưa bán. Thí nghiệm hiện chỉ kiểm tra 7 ngày sau giao dịch đầu, với metadata sản phẩm và trạng thái đơn hàng là snapshot cuối. Giá giao dịch đầu được dùng thay cho median tương lai. Chưa chứng minh dự báo trước bán; không mặc định mô hình thắng baseline giá. Kết quả và số mẫu nằm ở mục 4 và manifest thực nghiệm.
 3. **Tuần Không Bán Hàng:** Dữ liệu hiện tại chưa phân biệt được tuần có doanh thu bằng 0 là do hết hàng tồn kho (*Stockout*) hay do không có nhu cầu tiêu dùng (*Zero Demand*).
 
 ## 📫 Liên hệ (Contact Information)
