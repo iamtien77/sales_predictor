@@ -9,7 +9,6 @@ Mục đích:
 """
 import sys
 from pathlib import Path
-from typing import Optional, Dict, Any, List
 import numpy as np
 import pandas as pd
 
@@ -29,146 +28,9 @@ if str(ROOT_DIR) not in sys.path:
 from src import config
 
 
-def clean_weekly_source_data(items: pd.DataFrame) -> pd.DataFrame:
-    """Kiểm tra và làm sạch dòng sản phẩm trước khi tổng hợp tuần; không học thống kê."""
-    required = {"product_id", "price", config.TIMESTAMP_COLUMN}
-    if not required.issubset(items):
-        raise ValueError(f"Thiếu cột nguồn để tạo dữ liệu tuần: {sorted(required - set(items.columns))}")
-    data = items.copy()
-    if "order_status" in data:
-        data = data.loc[data["order_status"].eq("delivered")].copy()
-    data[config.TIMESTAMP_COLUMN] = pd.to_datetime(data[config.TIMESTAMP_COLUMN], errors="raise")
-    data["price"] = pd.to_numeric(data["price"], errors="coerce")
-    data = data.dropna(subset=["product_id", "price", config.TIMESTAMP_COLUMN])
-    data = data.loc[(data["price"] > 0) & np.isfinite(data["price"])].copy()
-    if data.empty:
-        raise ValueError("Không còn giao dịch bán hàng hợp lệ.")
-    if {"order_id", "order_item_id"}.issubset(data):
-        data = data.drop_duplicates(["order_id", "order_item_id"])
-    return data
-
-
-def build_weekly_sales_dataset(items: pd.DataFrame, reviews: pd.DataFrame = None) -> pd.DataFrame:
-    """Mỗi dòng là một sản phẩm–tuần; đầu vào chỉ dùng những tuần trước target.
-
-    Giữ tuần không bán sau lần bán đầu đến tuần đầy đủ cuối cùng.
-    Doanh thu là tổng giá các item, không gồm phí vận chuyển và dữ liệu mô phỏng.
-    """
-    data = clean_weekly_source_data(items)
-    dates = data[config.TIMESTAMP_COLUMN]
-    data["week"] = dates.dt.to_period("W-SUN").dt.start_time
-    # Tuần đầu và cuối có thể chưa được thu thập đủ ngày.
-    first_complete = data["week"].min() + pd.Timedelta(weeks=1)
-    last_complete = data["week"].max() - pd.Timedelta(weeks=1)
-    if last_complete <= first_complete:
-        raise ValueError("Cần quan sát ít nhất bốn tuần lịch để tạo dữ liệu dự báo.")
-    data = data.loc[data["week"].between(first_complete, last_complete)].copy()
-    category = "product_category_name" if "product_category_name" in data else "category"
-    if category not in data:
-        data[category] = "other"
-    weekly = data.groupby(["product_id", "week"], as_index=False).agg(
-        revenue=("price", "sum"), units=("price", "size"), price=("price", "mean"))
-    first_weeks = weekly.groupby("product_id")["week"].min()
-    weeks = pd.date_range(first_complete, last_complete, freq="W-MON")
-    index = pd.MultiIndex.from_product([first_weeks.index, weeks], names=["product_id", "week"])
-    panel = weekly.set_index(["product_id", "week"]).reindex(index).reset_index()
-    panel = panel.loc[panel["week"] >= panel["product_id"].map(first_weeks)].copy()
-    panel[["revenue", "units"]] = panel[["revenue", "units"]].fillna(0.0)
-    panel["price"] = panel.groupby("product_id")["price"].ffill()
-    groups = panel.groupby("product_id", sort=False)
-    panel["sales"] = panel["revenue"]
-    panel["last_week_sales"] = groups["revenue"].shift(1)
-    panel["sales_lag_2_weeks"] = groups["revenue"].shift(2).fillna(0.0)
-    panel["sales_lag_4_weeks"] = groups["revenue"].shift(4).fillna(0.0)
-    panel["sales_mean_4_weeks"] = groups["revenue"].transform(lambda s: s.shift().rolling(4, min_periods=1).mean())
-    panel["sales_std_4_weeks"] = groups["revenue"].transform(lambda s: s.shift().rolling(4, min_periods=1).std(ddof=0))
-    panel["last_week_units"] = groups["units"].shift(1)
-    panel["price"] = groups["price"].shift(1)
-    panel["weeks_since_first_sale"] = (panel["week"] - panel["product_id"].map(first_weeks)).dt.days // 7
-    categories = data.sort_values(config.TIMESTAMP_COLUMN).drop_duplicates("product_id").set_index("product_id")[category]
-    panel["category"] = panel["product_id"].map(categories).fillna("other")
-    panel[config.TIMESTAMP_COLUMN] = panel["week"]
-    # Tuần bán đầu làm lịch sử cho dự báo đầu tiên; không tạo target chưa quan sát.
-    panel = panel.loc[panel["last_week_sales"].notna()].copy()
-    keep = ["product_id", config.TIMESTAMP_COLUMN, "category", "price", "sales",
-            "last_week_sales", "sales_lag_2_weeks", "sales_lag_4_weeks",
-            "sales_mean_4_weeks", "sales_std_4_weeks", "last_week_units", "weeks_since_first_sale"]
-    result = panel[keep].sort_values([config.TIMESTAMP_COLUMN, "product_id"]).reset_index(drop=True)
-    return add_historical_features(result, data, reviews)
-
-
-def add_historical_features(panel, data, reviews=None):
-    """Ghép lịch sử đã biết trước tuần đích; không dùng đánh giá tại lúc mua hàng."""
-    result = panel.copy()
-    # Tổng hợp khách hàng theo tuần trước khi ghép lại sản phẩm để tránh nhân dòng.
-    if "customer_unique_id" in data:
-        customer = data.groupby(["customer_unique_id", "week"], as_index=False).agg(
-            spend=("price", "sum"), orders=("order_id", "nunique"))
-        customer = customer.sort_values(["customer_unique_id", "week"])
-        customer["customer_past_spend"] = customer.groupby("customer_unique_id")["spend"].cumsum() - customer.spend
-        customer["customer_past_orders"] = customer.groupby("customer_unique_id")["orders"].cumsum() - customer.orders
-        enriched = data.merge(customer, on=["customer_unique_id", "week"], validate="many_to_one")
-        history = enriched.groupby(["product_id", "week"], as_index=False).agg(
-            customer_past_spend=("customer_past_spend", "mean"),
-            customer_past_orders=("customer_past_orders", "mean"))
-        if "customer_state" in enriched:
-            states = enriched.groupby(["product_id", "week"])["customer_state"].nunique().rename("customer_state_count")
-            history = history.merge(states, on=["product_id", "week"])
-        history = history.rename(columns={"week": "history_week"})
-        result = pd.merge_asof(result.sort_values(config.TIMESTAMP_COLUMN), history.sort_values("history_week"),
-                               left_on=config.TIMESTAMP_COLUMN, right_on="history_week", by="product_id", allow_exact_matches=False)
-        result = result.drop(columns="history_week")
-    for col in ["customer_past_spend", "customer_past_orders", "customer_state_count"]:
-        if col not in result:
-            result[col] = 0.0
-        result[col] = result[col].fillna(0.0)
-    # Ngày trả lời là mốc bảo thủ để coi điểm đánh giá đã sẵn có.
-    # Khuyến nghị truyền reviews tường minh. Nếu reviews=None, hàm sẽ kiểm tra tệp dự phòng tại RAW_DATA_DIR;
-    # nếu không có, các trường review sẽ được điền 0.0 an toàn mà không làm sập pipeline.
-    if reviews is None:
-        path = config.RAW_DATA_DIR / "olist_order_reviews_dataset.csv"
-        if path.exists() and "order_id" in data:
-            try:
-                from src.utils.logger import setup_logger
-                setup_logger("sales_predictor").info(
-                    f"[DATA AUDIT] Tham số reviews=None; tự động nạp dữ liệu đánh giá từ tệp chuẩn: {path}"
-                )
-            except Exception:
-                pass
-            reviews = pd.read_csv(path)
-    if reviews is not None and "order_id" in data:
-        events = reviews.merge(data[["order_id", "product_id"]].drop_duplicates(), on="order_id")
-        events["available_at"] = pd.to_datetime(events["review_answer_timestamp"], errors="coerce")
-        events["review_score"] = pd.to_numeric(events["review_score"], errors="coerce")
-        events = events.dropna(subset=["available_at", "review_score"])
-        events = events.loc[events.review_score.between(1, 5)].drop_duplicates(["review_id", "product_id"])
-        events = events.groupby(["product_id", "available_at"], as_index=False).agg(
-            score_sum=("review_score", "sum"), review_count=("review_score", "size"))
-        events = events.sort_values(["product_id", "available_at"])
-        events["past_review_count"] = events.groupby("product_id").review_count.cumsum()
-        events["past_review_rating"] = events.groupby("product_id").score_sum.cumsum() / events.past_review_count
-        if not events.empty:
-            result = pd.merge_asof(result.sort_values(config.TIMESTAMP_COLUMN),
-                events[["product_id", "available_at", "past_review_count", "past_review_rating"]].sort_values("available_at"),
-                left_on=config.TIMESTAMP_COLUMN, right_on="available_at", by="product_id", allow_exact_matches=False)
-            result = result.drop(columns="available_at")
-    for col in ["past_review_count", "past_review_rating"]:
-        if col not in result:
-            result[col] = 0.0
-        result[col] = result[col].fillna(0.0)
-    return result.sort_values([config.TIMESTAMP_COLUMN, "product_id"]).reset_index(drop=True)
-
-
-# ==============================================================================
-# [LEGACY BUILDER / ĐỒ ÁN CŨ]
-# Hàm dưới đây thuộc phiên bản đồ án ban đầu (dự báo theo từng dòng giao dịch đơn lẻ,
-# có sinh dữ liệu nhân khẩu học mô phỏng age, gender, marketing).
-# KHÔNG SỬ DỤNG CHO LUỒNG DỰ BÁO DOANH THU TUẦN CHÍNH THỨC HIỆN TẠI (build_weekly_sales_dataset).
-# Giữ lại nhằm đảm bảo tính tương thích ngược cho các notebook và bài kiểm thử di sản.
-# ==============================================================================
 def build_merged_sales_dataset(output_path: Path = None, random_state: int = 42) -> pd.DataFrame:
     """
-    [LEGACY] Hợp nhất các bảng Olist và sinh các nhóm đặc trưng theo cấu trúc cũ.
+    Hợp nhất các bảng Olist và sinh các nhóm đặc trưng bám sát src/config.py.
     
     Args:
         output_path: Đường dẫn lưu file CSV đầu ra (mặc định là config.RAW_DATA_FILE)
@@ -206,7 +68,6 @@ def build_merged_sales_dataset(output_path: Path = None, random_state: int = 42)
         products["category"] = (
             products["product_category_name_english"]
             .fillna(products["product_category_name"])
-            .fillna("other")
         )
     else:
         products["category"] = products["product_category_name"].fillna("other")
@@ -238,7 +99,7 @@ def build_merged_sales_dataset(output_path: Path = None, random_state: int = 42)
 
     print("[4/6] Khởi tạo biến mục tiêu và 5 nhóm đặc trưng...")
     # Biến mục tiêu: sales (tổng giá trị giao dịch đơn hàng)
-    df["sales"] = df["price"].round(2)  # Item revenue; ordinal is not quantity.
+    df["sales"] = np.round(df["price"] * df["order_item_id"], 2)
 
     # Nhóm 1: Product Information & Text
     cat_avg = df.groupby("category")["price"].transform("mean")
@@ -356,70 +217,167 @@ def build_merged_sales_dataset(output_path: Path = None, random_state: int = 42)
     return df
 
 
-def build_cold_start_dataset(raw_dir: Optional[Path] = None) -> pd.DataFrame:
-    """
-    Xây dựng proxy doanh thu 7 ngày kể từ giao dịch đầu tiên đã quan sát.
-    Giá đầu vào là giá giao dịch đầu, không phải median giá trong kỳ đích.
-    Không chứng minh dự báo trước ngày niêm yết hoặc cho sản phẩm chưa từng bán.
-    Trạng thái delivered và thuộc tính sản phẩm là snapshot cuối của Olist;
-    đánh giá này giả định chúng đại diện cho dữ liệu tại thời điểm giao dịch đầu.
-    
-    Quy trình:
-    1. Đọc olist_orders_dataset (lọc order_status == 'delivered') và olist_order_items_dataset.
-    2. Với mỗi product_id, xác định thời điểm mua đầu tiên (first_purchase_time).
-    3. Thu thập các giao dịch trong tuần mở bán: [first_purchase_time, first_purchase_time + 7 days).
-    4. Tổng hợp doanh số 7 ngày (launch_sales_brl, tên giữ để tương thích).
-    5. Ghép nối với olist_products_dataset để lấy các đặc trưng nội dung vật lý.
-    """
-    if raw_dir is None:
-        raw_dir = config.RAW_DATA_DIR
+def build_product_week_panel(
+    raw_dir: Path = None,
+    output_path: Path = None,
+) -> pd.DataFrame:
+    """Tạo panel Sản phẩm–Tuần đầy đủ từ sáu bảng dữ liệu Olist gốc."""
+    raw_dir = Path(raw_dir) if raw_dir is not None else config.RAW_DATA_DIR
+    output_path = Path(output_path) if output_path is not None else config.WEEKLY_PANEL_FILE
 
-    orders_path = raw_dir / "olist_orders_dataset.csv"
-    items_path = raw_dir / "olist_order_items_dataset.csv"
-    products_path = raw_dir / "olist_products_dataset.csv"
+    required_files = {
+        "items": "olist_order_items_dataset.csv",
+        "orders": "olist_orders_dataset.csv",
+        "products": "olist_products_dataset.csv",
+        "reviews": "olist_order_reviews_dataset.csv",
+        "customers": "olist_customers_dataset.csv",
+        "translations": "product_category_name_translation.csv",
+    }
+    missing_files = [name for name in required_files.values() if not (raw_dir / name).is_file()]
+    if missing_files:
+        raise FileNotFoundError(f"Missing Olist source files in {raw_dir}: {missing_files}")
 
-    if not (orders_path.exists() and items_path.exists() and products_path.exists()):
-        raise FileNotFoundError(f"Không đủ tệp dữ liệu thô trong {raw_dir} để xây dựng tập Cold-Start.")
+    items = pd.read_csv(raw_dir / required_files["items"])
+    orders = pd.read_csv(raw_dir / required_files["orders"])
+    products = pd.read_csv(raw_dir / required_files["products"])
+    reviews = pd.read_csv(raw_dir / required_files["reviews"])
+    customers = pd.read_csv(
+        raw_dir / required_files["customers"],
+        usecols=["customer_id", "customer_state"],
+    )
+    translations = pd.read_csv(raw_dir / required_files["translations"])
 
-    orders = pd.read_csv(orders_path, usecols=["order_id", "order_status", config.TIMESTAMP_COLUMN])
-    orders[config.TIMESTAMP_COLUMN] = pd.to_datetime(orders[config.TIMESTAMP_COLUMN])
-    # Conservative observation cutoff from actual delivered purchases, not late
-    # cancelled orders that could extend the apparent collection period.
-    orders = orders.loc[orders["order_status"].eq("delivered")].copy()
-    observed_until = orders[config.TIMESTAMP_COLUMN].max()
+    products = products.merge(translations, on="product_category_name", how="left")
+    products["category"] = (
+        products["product_category_name_english"]
+        .fillna(products["product_category_name"])
+        .fillna("other")
+    )
+    product_metadata = products[["product_id", "category"]].drop_duplicates("product_id")
 
-    items = pd.read_csv(items_path, usecols=["order_id", "product_id", "price"])
-    items["price"] = pd.to_numeric(items["price"], errors="coerce")
-    items = items.loc[(items["price"] > 0) & np.isfinite(items["price"])].copy()
+    delivered_orders = orders.loc[
+        orders["order_status"].eq("delivered"),
+        ["order_id", "customer_id", "order_purchase_timestamp"],
+    ].copy()
+    delivered_orders["order_purchase_timestamp"] = pd.to_datetime(
+        delivered_orders["order_purchase_timestamp"], errors="coerce"
+    )
+    delivered_orders = delivered_orders.dropna(subset=["order_purchase_timestamp"])
 
-    products = pd.read_csv(products_path)
+    transactions = (
+        items.merge(delivered_orders, on="order_id", how="inner")
+        .merge(product_metadata, on="product_id", how="left")
+        .merge(customers, on="customer_id", how="left")
+    )
+    transactions["week_start"] = (
+        transactions["order_purchase_timestamp"].dt.normalize()
+        - pd.to_timedelta(transactions["order_purchase_timestamp"].dt.dayofweek, unit="D")
+    )
+    if transactions.empty:
+        raise ValueError("No delivered Olist transactions with valid purchase timestamps.")
 
-    # Nối đơn hàng với item
-    merged_items = items.merge(orders[["order_id", config.TIMESTAMP_COLUMN]], on="order_id", how="inner")
+    # Olist lưu mỗi đơn vị hàng trên một dòng; order_item_id là thứ tự mặt hàng,
+    # không phải số lượng, nên số lượng bán được tính bằng cách đếm dòng.
+    weekly_sales = (
+        transactions.groupby(["product_id", "week_start"], observed=True)
+        .agg(
+            sales=("price", "sum"),
+            units_sold=("price", "size"),
+            avg_price=("price", "mean"),
+            order_count=("order_id", "nunique"),
+        )
+        .reset_index()
+    )
 
-    # Xác định thời điểm xuất hiện lần đầu của từng sản phẩm
-    first_times = (merged_items.sort_values([config.TIMESTAMP_COLUMN, "order_id"], kind="stable")
-                   .drop_duplicates("product_id")
-                   [["product_id", config.TIMESTAMP_COLUMN, "price"]]
-                   .rename(columns={config.TIMESTAMP_COLUMN: "first_purchase_time", "price": "first_price"}))
-    first_times["target_window_end"] = first_times["first_purchase_time"] + pd.Timedelta(days=7)
-    first_times = first_times.loc[first_times["target_window_end"] <= observed_until].copy()
-    merged_items = merged_items.merge(first_times, on="product_id", how="inner")
+    review_events = (
+        reviews.merge(items[["order_id", "product_id"]], on="order_id", how="inner")
+        [["product_id", "review_score", "review_creation_date"]]
+        .copy()
+    )
+    review_events["review_creation_date"] = pd.to_datetime(
+        review_events["review_creation_date"], errors="coerce"
+    )
+    review_events = review_events.dropna(subset=["review_creation_date"])
+    review_events["week_start"] = (
+        review_events["review_creation_date"].dt.normalize()
+        - pd.to_timedelta(review_events["review_creation_date"].dt.dayofweek, unit="D")
+    )
+    weekly_reviews = (
+        review_events.groupby(["product_id", "week_start"], observed=True)
+        .agg(
+            review_count=("review_score", "count"),
+            rating_sum=("review_score", "sum"),
+        )
+        .reset_index()
+    )
 
-    # Giữ lại các giao dịch trong khoảng 7 ngày đầu kể từ lúc ra mắt
-    launch_window_end = merged_items["first_purchase_time"] + pd.Timedelta(days=7)
-    launch_items = merged_items.loc[merged_items[config.TIMESTAMP_COLUMN] < launch_window_end].copy()
+    first_state_weeks = (
+        transactions.dropna(subset=["customer_state"])
+        .groupby(["product_id", "customer_state"], observed=True)["week_start"]
+        .min()
+        .reset_index()
+    )
+    weekly_new_states = (
+        first_state_weeks.groupby(["product_id", "week_start"], observed=True)
+        .size()
+        .rename("new_customer_states")
+        .reset_index()
+    )
 
-    launch_sales = launch_items.groupby("product_id").agg(
-        launch_sales_brl=("price", "sum"),
-        launch_units=("price", "count")
-    ).reset_index()
+    first_weeks = weekly_sales.groupby("product_id")["week_start"].min()
+    all_weeks = pd.date_range(
+        weekly_sales["week_start"].min(),
+        weekly_sales["week_start"].max(),
+        freq="W-MON",
+    )
+    week_positions = {week: position for position, week in enumerate(all_weeks)}
+    first_positions = first_weeks.map(week_positions).to_numpy(dtype=np.int32)
 
-    cold_df = products.merge(launch_sales, on="product_id", how="inner", validate="one_to_one")
-    cold_df = cold_df.merge(first_times, on="product_id", validate="one_to_one")
-    cold_df["price"] = cold_df.pop("first_price")
-    cold_df = cold_df.sort_values(["first_purchase_time", "product_id"]).reset_index(drop=True)
-    return cold_df
+    # Mỗi sản phẩm bắt đầu từ tuần bán đầu tiên; các tuần không bán tiếp theo
+    # vẫn được giữ lại đến tuần quan sát cuối cùng.
+    panel_index = pd.MultiIndex.from_arrays(
+        [
+            np.repeat(first_weeks.index.to_numpy(), len(all_weeks) - first_positions),
+            all_weeks.to_numpy()[
+                np.concatenate([
+                    np.arange(start, len(all_weeks), dtype=np.int32)
+                    for start in first_positions
+                ])
+            ],
+        ],
+        names=["product_id", "week_start"],
+    )
+    panel = pd.DataFrame(index=panel_index).reset_index()
+    panel = panel.merge(product_metadata, on="product_id", how="left")
+    panel = panel.merge(weekly_sales, on=["product_id", "week_start"], how="left")
+    panel = panel.merge(weekly_reviews, on=["product_id", "week_start"], how="left")
+    panel = panel.merge(weekly_new_states, on=["product_id", "week_start"], how="left")
+
+    zero_columns = [
+        "sales", "units_sold", "order_count", "review_count", "rating_sum",
+        "new_customer_states",
+    ]
+    panel[zero_columns] = panel[zero_columns].fillna(0)
+    panel["sales"] = panel["sales"].astype("float32")
+    panel["units_sold"] = panel["units_sold"].astype("int32")
+    panel["order_count"] = panel["order_count"].astype("int32")
+    panel["review_count"] = panel["review_count"].astype("int32")
+    panel["rating_sum"] = panel["rating_sum"].astype("float32")
+    panel["new_customer_states"] = panel["new_customer_states"].astype("int16")
+
+    # Giá đầu vào lấy từ tuần đã hoàn tất gần nhất, không lấy giá của tuần mục tiêu.
+    panel = panel.sort_values(["product_id", "week_start"], kind="stable")
+    panel["avg_price_last_observed"] = (
+        panel.groupby("product_id", observed=True)["avg_price"]
+        .transform(lambda values: values.shift(1).ffill())
+        .astype("float32")
+    )
+    panel = panel.drop(columns="avg_price")
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    panel.to_csv(output_path, index=False)
+    print(f"Saved weekly product panel: {panel.shape[0]:,} rows, {panel.shape[1]} columns to {output_path}")
+    return panel
 
 
 if __name__ == "__main__":
