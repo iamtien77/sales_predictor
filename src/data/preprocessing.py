@@ -42,19 +42,18 @@ def split_product_week_data(
     )
     cumulative_rows = np.cumsum(rows_per_week)
     total_rows = cumulative_rows[-1]
-    train_end = np.searchsorted(
-        cumulative_rows, total_rows * train_size, side="left"
-    ) + 1
-    train_end = min(max(int(train_end), 1), len(weeks) - 2)
-    validation_end = np.searchsorted(
-        cumulative_rows,
-        total_rows * (train_size + validation_size),
-        side="left",
-    ) + 1
-    validation_end = min(
-        max(int(validation_end), train_end + 1),
-        len(weeks) - 1,
+    train_end = int(
+        np.argmin(np.abs(cumulative_rows[:-2] - total_rows * train_size)) + 1
     )
+    validation_candidates = cumulative_rows[train_end:-1]
+    validation_end = train_end + int(
+        np.argmin(
+            np.abs(
+                validation_candidates
+                - total_rows * (train_size + validation_size)
+            )
+        )
+    ) + 1
     train_cutoff = weeks[train_end]
     validation_cutoff = weeks[validation_end]
 

@@ -78,7 +78,7 @@ def engineer_product_week_features(panel: pd.DataFrame) -> pd.DataFrame:
         where=prior_review_count.to_numpy() > 0,
     )
 
-    featured["cumulative_customer_spend"] = (
+    featured["cumulative_product_sales_prior"] = (
         grouped["sales"].cumsum()
         .groupby(featured["product_id"], sort=False)
         .shift(1)

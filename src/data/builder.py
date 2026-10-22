@@ -251,7 +251,6 @@ def build_product_week_panel(
     products["category"] = (
         products["product_category_name_english"]
         .fillna(products["product_category_name"])
-        .fillna("other")
     )
     product_metadata = products[["product_id", "category"]].drop_duplicates("product_id")
 
@@ -289,15 +288,27 @@ def build_product_week_panel(
         .reset_index()
     )
 
+    order_products = items[["order_id", "product_id"]].drop_duplicates()
     review_events = (
-        reviews.merge(items[["order_id", "product_id"]], on="order_id", how="inner")
-        [["product_id", "review_score", "review_creation_date"]]
+        reviews.merge(order_products, on="order_id", how="inner")
+        .merge(
+            delivered_orders[["order_id", "order_purchase_timestamp"]],
+            on="order_id",
+            how="inner",
+        )
+        [["product_id", "review_score", "review_creation_date", "order_purchase_timestamp"]]
         .copy()
     )
     review_events["review_creation_date"] = pd.to_datetime(
         review_events["review_creation_date"], errors="coerce"
     )
-    review_events = review_events.dropna(subset=["review_creation_date"])
+    review_events = review_events.dropna(
+        subset=["review_score", "review_creation_date", "order_purchase_timestamp"]
+    )
+    review_events = review_events.loc[
+        review_events["review_creation_date"].dt.normalize()
+        >= review_events["order_purchase_timestamp"].dt.normalize()
+    ]
     review_events["week_start"] = (
         review_events["review_creation_date"].dt.normalize()
         - pd.to_timedelta(review_events["review_creation_date"].dt.dayofweek, unit="D")
@@ -358,7 +369,6 @@ def build_product_week_panel(
         "new_customer_states",
     ]
     panel[zero_columns] = panel[zero_columns].fillna(0)
-    panel["sales"] = panel["sales"].astype("float32")
     panel["units_sold"] = panel["units_sold"].astype("int32")
     panel["order_count"] = panel["order_count"].astype("int32")
     panel["review_count"] = panel["review_count"].astype("int32")
