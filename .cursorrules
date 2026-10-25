@@ -1,0 +1,11 @@
+# Cursor AI Rules
+Before taking any action, read and strictly comply with the guidelines defined in:
+- `AGENTS.md`
+- `.agents/rules/*.md`
+- `.agents/workflows/*.md`
+
+Key Directives:
+1. Communication: Vietnamese as primary language, keep technical terms in English. No hollow praise or filler phrases. Go straight to technical analysis.
+2. Discipline: Clarify first. Propose Implementation Plan and get user confirmation before editing code or files.
+3. ML: Baseline first, define evaluation metrics upfront, explain trade-offs.
+4. Stability: Do not refactor unrelated stable code. Follow naming conventions (snake_case in Python).
