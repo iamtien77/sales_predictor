@@ -23,15 +23,15 @@ Trong quản trị thương mại điện tử hiện đại, việc dự báo c
 - **Xử lý tuần doanh thu bằng 0 (*Zero-Sales Weeks*):** Với mỗi sản phẩm, từ tuần đầu tiên phát sinh đơn hàng đến tuần cuối cùng quan sát, những tuần không bán được sản phẩm nào vẫn được bảo toàn với nhãn `sales = 0.0` BRL. Điều này phản ánh trung thực bản chất dữ liệu thưa (*sparse demand*) trong kinh doanh trực tuyến.
 - **Không gian huấn luyện & suy luận:** Doanh thu thực tế có độ lệch phải rất lớn (Right-skewed). Mô hình được huấn luyện trong không gian Log tự nhiên:
 
-  $$
+  ```math
   y_{\text{train}} = \log(1 + \text{sales})
-  $$
+  ```
 
   Khi dự báo và suy luận nghiệp vụ, kết quả được chuyển đổi ngược về thang tiền tệ BRL và chặn dưới bằng 0:
 
-  $$
+  ```math
   \hat{y}_{\text{sales}} = \max\left(0, \exp(\hat{y}) - 1\right)
-  $$
+  ```
 
 ---
 
@@ -47,9 +47,11 @@ Dự án tuân thủ nghiêm ngặt nguyên tắc học thuật: **Nói KHÔNG v
    - Kẹp dự báo log trong `[min_train - 0.5*span, max_train + 0.5*span]`, với `span = max(1, max_train - min_train)`. Đây là giới hạn số học theo Train, không bảo đảm sai số tiền tệ thấp.
 2. **Decision Tree Regressor (`DecisionTreeRegressorFromScratch`):**
    - Xây dựng cây hồi quy nhị phân đệ quy dựa trên tiêu chuẩn Giảm phương sai (Variance Reduction):
-     $$
+
+     ```math
      \Delta \text{Var} = \text{Var}(D) - \left( \frac{|D_L|}{|D|} \text{Var}(D_L) + \frac{|D_R|}{|D|} \text{Var}(D_R) \right)
-     $$
+     ```
+
    - Tối ưu hóa tốc độ phân nhánh bằng cơ chế 16 Điểm phân vị ứng viên (*Quantile Split Candidates*).
 3. **Random Forest Regressor (`RandomForestRegressorFromScratch`):**
    - Thuật toán Ensemble Bagging: Lấy mẫu lặp lại có hoàn lại (*Bootstrap Sampling*) cho từng cây.
@@ -57,9 +59,11 @@ Dự án tuân thủ nghiêm ngặt nguyên tắc học thuật: **Nói KHÔNG v
 4. **Gradient Boosting Regressor (`GradientBoostingRegressorFromScratch`):**
    - Huấn luyện tuần tự $M$ cây hồi quy trên phần dư âm (Residuals) của hàm mất mát bình phương.
    - Ứng dụng hệ số học co hẹp (*Learning Rate / Shrinkage*) $\eta \in (0, 1]$ để kiểm soát tốc độ hội tụ:
-     $$
+
+     ```math
      \hat{y}^{(m)}(x) = \hat{y}^{(m-1)}(x) + \eta \cdot h_m(x)
-     $$
+     ```
+
 5. **Two-Stage Hurdle Regressor (`TwoStageHurdleRegressorFromScratch`):**
    - Kiến trúc 2 giai đoạn chuyên trị phân phối thưa zero-inflated:
      - **Giai đoạn 1 (Classification):** Cây quyết định phân loại dự báo xác suất tuần đó sản phẩm có phát sinh doanh số hay không $\Pr(y > 0 \mid x)$.
@@ -76,9 +80,11 @@ Bên cạnh dự báo tuần, hệ thống có một thí nghiệm proxy sau l�
    - Chia theo thời gian, loại nhãn Train vượt mốc Test và cửa sổ chưa đủ ngày. Đối chứng cả trung vị danh mục và `sales = first_price`; xem kết quả sinh tự động ở mục 4.
 2. **Marketing Diminishing Returns Response Model (`simulate_marketing_response`):**
    - Động cơ kinh tế lượng mô phỏng phản hồi doanh số gia tăng theo ngân sách quảng cáo dựa trên hàm Log-Response chuẩn mực:
-     $$
+
+     ```math
      \text{Uplift Factor} = 1.0 + \beta_{\text{ad}} \cdot \ln\left(1 + \frac{\text{Ad Spend}}{S_{ref}}\right)
-     $$
+     ```
+
    - Hệ số và ngân sách tham chiếu là giả định người dùng, chưa học từ chiến dịch. ROI sử dụng biên lợi nhuận gộp giả định; không phải dự báo lợi nhuận thực tế.
 
 ### 2.3. Bốn Mô hình Đối chứng Cơ sở (Baselines)
