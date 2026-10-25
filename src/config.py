@@ -57,6 +57,7 @@ CACHE_Y_VAL = PROCESSED_DATA_DIR / "y_val.npy"
 CACHE_X_TEST = PROCESSED_DATA_DIR / "X_test.npz"
 CACHE_Y_TEST = PROCESSED_DATA_DIR / "y_test.npy"
 CACHE_FEATURE_NAMES = PROCESSED_DATA_DIR / "feature_names.json"
+CACHE_PIPELINE = PROCESSED_DATA_DIR / "preprocessor_pipeline.pkl"
 
 # ==========================================
 # 2. TOÀN BỘ ĐẶC TRƯNG (FULL FEATURE TAXONOMY)
@@ -216,6 +217,16 @@ TEST_SIZE = 0.1
 RANDOM_STATE = 42
 CV_FOLDS = 5
 USE_TEMPORAL_SPLIT = True  # True: chia theo mốc thời gian, False: random split
+
+# Dự báo theo tuần: các đầu vào đã có trước khi tuần target bắt đầu.
+WEEKLY_NUMERICAL_COLS = [
+    "past_review_count", "past_review_rating", "customer_past_spend",
+    "customer_past_orders", "customer_state_count",
+    "price", "last_week_sales", "sales_lag_2_weeks", "sales_lag_4_weeks",
+    "sales_mean_4_weeks", "sales_std_4_weeks", "last_week_units",
+    "weeks_since_first_sale", "month_sin", "month_cos", "is_peak_shopping_season",
+]
+WEEKLY_CATEGORICAL_COLS = ["category"]
 
 # ==========================================
 # 4. HYPERPARAMETER GRIDS CHO GRIDSEARCHCV

@@ -1,9 +1,32 @@
-"""
-test_requirement_updates.py - Kiểm thử cập nhật yêu cầu đề bài: Chống rò rỉ review, Thang đo BRL & Tuning 3 họ cây
-==================================================================================================================
-- test_review_leakage_prevention(): Kiểm tra review_score chỉ tính từ các đánh giá trước tuần dự báo, không rò rỉ review đồng thời/tương lai
-- test_currency_scale_consistency_brl(): Kiểm tra tính nhất quán của đơn vị tiền tệ Brazil Real (BRL) trên toàn bộ các trường price, freight, revenue
-- test_tree_hyperparameter_grids(): Kiểm tra không gian siêu tham số cấu hình cho 3 họ mô hình cây (Decision Tree, Random Forest, Gradient Boosting)
-- test_grid_search_tree_optimization(): Kiểm tra quá trình GridSearchCV trên tập Validation 10% chọn ra bộ tham số tối ưu và không bị overfitting
-- test_target_scale_and_evaluation(): Kiểm tra biến mục tiêu doanh số bán hàng được tính toán đúng thang đo và đánh giá độc lập trên tập Test
-"""
+import numpy as np
+import pytest
+
+from src.evaluation.metrics import calculate_metrics
+
+
+def test_target_scale_and_evaluation():
+    y_true = np.array([1000.0, 2000.0, 3000.0])
+    y_pred_log = np.log1p(
+        np.array([900.0, 2100.0, 2900.0])
+    )
+
+    result = calculate_metrics(
+        y_true,
+        y_pred_log,
+        predictions_are_log=True,
+    )
+
+    assert result["scale"] == "BRL"
+    assert result["MAE"] == pytest.approx(100.0)
+    assert result["RMSE"] == pytest.approx(100.0)
+
+
+def test_brl_scale_is_explicit():
+    result = calculate_metrics(
+        [100.0, 200.0],
+        [90.0, 210.0],
+    )
+
+    assert result["scale"] == "BRL"
+    assert result["MSE"] == pytest.approx(100.0)
+    assert result["RMSE"] == pytest.approx(10.0)

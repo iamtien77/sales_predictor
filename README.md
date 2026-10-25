@@ -1,4 +1,4 @@
-# 📈 Dự Báo Doanh Thu Sản Phẩm Theo Tuần (Weekly Product Sales Predictor)
++# 📈 Dự Báo Doanh Thu Sản Phẩm Theo Tuần (Weekly Product Sales Predictor)
 
 > **Dự án Môn học Máy (Machine Learning Project)**
 > **Phương pháp tiếp cận:** 100% Cài đặt Thuần túy From-Scratch bằng **NumPy** (Không dùng thư viện Scikit-Learn cho mô hình và tiền xử lý).

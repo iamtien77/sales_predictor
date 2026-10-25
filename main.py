@@ -41,7 +41,7 @@ from src import config
 from src.utils.logger import setup_logger, log_step, print_section_header
 from src.data import loader, preprocessing, feature_engineering, builder
 from src.models import regressors, tuning, persistence
-from src.evaluation import metrics, visualization, error_analysis
+from src.evaluation import metrics, visualization, error_analysis, cold_start, reporting
 from src.deployment import predictor
 
 logger = setup_logger("sales_predictor")
@@ -380,278 +380,406 @@ def step_7_hyperparameter_tuning(
     return winner["best_estimator"], {**winner["best_params"], "model_family": name}
 
 
-def step_8_evaluate_and_compare(
-    trained_dict: Dict[str, Any],
-    best_tuned_model: Any,
-    X_test: Any,
-    y_test: np.ndarray
-) -> pd.DataFrame:
-    """BƯỚC 8: Nghiệm thu Độc lập trên Test 10% & Xuất Bảng So sánh Chỉ số"""
-    print_section_header("Nghiệm thu Độc lập trên Test 10% & Đánh giá Chỉ số", step_num=8)
-
-    # Báo sai số theo BRL; bản thân mô hình dự đoán log1p(sales).
-    y_test = np.maximum(0.0, np.expm1(y_test))
-    results_eval = {}
-    for name, item in trained_dict.items():
-        m = item["model"]
-        y_pred = np.maximum(0.0, np.expm1(m.predict(X_test)))
-        metrics_dict = metrics.compute_extended_metrics(y_test, y_pred)
-        results_eval[name] = {
-            "model": m,
-            "metrics": metrics_dict,
-            "y_pred": y_pred,
-            "fit_time": item["fit_time"]
-        }
-
-    # Bổ sung kết quả của Tuned Random Forest
-    y_pred_tuned = np.maximum(0.0, np.expm1(best_tuned_model.predict(X_test)))
-    tuned_metrics = metrics.compute_extended_metrics(y_test, y_pred_tuned)
-    results_eval["Tuned Model"] = {
-        "model": best_tuned_model,
-        "metrics": tuned_metrics,
-        "y_pred": y_pred_tuned,
-        "fit_time": 0.0
-    }
-
-    summary_df = metrics.build_summary_table(results_eval)
-    summary_df["Target_Scale"] = "BRL"
-    print("\n" + "=" * 70)
-    print("🏆 BẢNG TỔNG HỢP SO SÁNH CHỈ SỐ HỒI QUY TRÊN TẬP TEST SET ĐỘC LẬP:")
-    print("=" * 70)
-    print(summary_df.to_string(index=False))
-    print("=" * 70 + "\n")
-
-    # Lưu kết quả
-    config.METRICS_DIR.mkdir(parents=True, exist_ok=True)
-    summary_df.to_csv(config.METRICS_DIR / "model_comparison.csv", index=False, encoding="utf-8-sig")
-
-    # Đánh giá nghiệp vụ phân nhóm và đo lường sai lệch thiếu/thừa (Under/Over-forecast)
-    subgroup_dfs = []
-    for m_name in ["Tuned Model", "Two-Stage Hurdle"]:
-        if m_name in results_eval:
-            sg_df = metrics.evaluate_business_subgroups(
-                y_true=y_test,
-                y_pred=results_eval[m_name]["y_pred"],
-                model_name=m_name
-            )
-            subgroup_dfs.append(sg_df)
-    if subgroup_dfs:
-        all_subgroups_df = pd.concat(subgroup_dfs, ignore_index=True)
-        subgroup_csv = config.METRICS_DIR / "business_subgroup_evaluation.csv"
-        all_subgroups_df.to_csv(subgroup_csv, index=False, encoding="utf-8-sig")
-        print("\n" + "=" * 70)
-        print("📦 BẢNG ĐÁNH GIÁ NGHIỆP VỤ PHÂN NHÓM & DỰ BÁO THIẾU/THỪA (TEST SET):")
-        print("=" * 70)
-        print(all_subgroups_df.to_string(index=False))
-        print("=" * 70 + "\n")
-
-    # Trực quan hóa so sánh
-    figs_dir = config.FIGURES_DIR
-    logger.info("Xuất các biểu đồ đánh giá mô hình chuẩn dpi=300...")
-    visualization.plot_model_comparison(summary_df, save_path=figs_dir / "model_comparison.png")
-    visualization.plot_actual_vs_predicted(results_eval, y_test, save_path=figs_dir / "actual_vs_predicted.png")
-    visualization.plot_residuals(results_eval, y_test, save_path=figs_dir / "residuals_plot.png")
-
-    return summary_df
 
 
+def _predict_log(models: Dict[str, Any], X_test: Any) -> Dict[str, np.ndarray]:
+    """Predict in the model's native log1p target space."""
+    out = {}
+    for name, model in models.items():
+        pred = np.asarray(model.predict(X_test), dtype=float).reshape(-1)
+        if not np.isfinite(pred).all():
+            raise ValueError(f"Model {name} returned NaN/Inf predictions.")
+        out[name] = pred
+    return out
 
-def step_9_error_analysis(
-    best_model: Any,
-    X_test: Any,
-    y_test: np.ndarray,
-    feature_names: list
-) -> pd.DataFrame:
-    """BƯỚC 9: Phân tích Phần dư & Mổ xẻ Top 20 Đơn hàng Sai lệch Lớn nhất"""
-    print_section_header("Phân tích Phần dư & Top 20 Worst Predictions", step_num=9)
 
-    y_pred = best_model.predict(X_test)
-    worst_df = error_analysis.find_worst_predictions(
-        X_test=X_test,
-        y_test=y_test,
-        y_pred=y_pred,
-        n=20,
-        save_path=config.METRICS_DIR / "worst_predictions.csv"
-    )
-
-    logger.info(f"Đã lưu danh sách 20 ca sai số lớn nhất vào: {config.METRICS_DIR / 'worst_predictions.csv'}")
-
-    # Vẽ feature importance
-    if hasattr(best_model, "feature_importances_") and feature_names:
-        logger.info("Xuất biểu đồ Feature Importance của mô hình tốt nhất...")
-        visualization.plot_feature_importance(
-            model=best_model,
-            feature_names=feature_names,
-            top_n=15,
-            save_path=config.FIGURES_DIR / "feature_importance.png"
+def _feature_importance_frame(model: Any, feature_names: list[str]) -> pd.DataFrame | None:
+    """Normalize model feature importance to the evaluation module contract."""
+    values = getattr(model, "feature_importances_", None)
+    if values is None or not feature_names:
+        return None
+    values = np.asarray(values, dtype=float).reshape(-1)
+    if len(values) != len(feature_names):
+        logger.warning(
+            "Feature importance length (%d) != feature count (%d); skipping figure.",
+            len(values), len(feature_names),
         )
+        return None
+    return pd.DataFrame({"feature": feature_names, "importance": values})
 
-    return worst_df
+
+def _build_evaluation_frame(test_df: pd.DataFrame, y_true_brl: np.ndarray,
+                            selected_prediction_brl: np.ndarray) -> pd.DataFrame:
+    """Build the error-analysis input while preserving product_id and week."""
+    if len(test_df) != len(y_true_brl):
+        raise ValueError("Test dataframe and target length are inconsistent.")
+    week = test_df[config.TIMESTAMP_COLUMN]
+    return pd.DataFrame({
+        "product_id": test_df["product_id"].astype(str).to_numpy(),
+        "week": week.astype(str).to_numpy(),
+        "actual": np.asarray(y_true_brl, dtype=float),
+        "prediction": np.asarray(selected_prediction_brl, dtype=float),
+    })
 
 
-def step_10_persistence_and_demo(
-    best_model: Any,
-    pipeline: Any,
-    best_params: dict,
-    X_test: Any,
-    y_test: np.ndarray
-) -> None:
-    """BƯỚC 10: Đóng gói Model Persistence & Demo 3 Kịch bản Kinh doanh"""
-    print_section_header("Đóng gói Persistence & Demo 3 Kịch bản Kinh doanh", step_num=10)
+def _load_optional_cold_start(path: str | None) -> pd.DataFrame | None:
+    """Load cold-start predictions already handed over by Task 2/My.
 
-    # 1. Đóng gói Artifact
-    config.SAVED_MODELS_DIR.mkdir(parents=True, exist_ok=True)
-    config.NOTEBOOK_SAVED_MODELS_DIR.mkdir(parents=True, exist_ok=True)
-    target_pkl = config.SAVED_MODELS_DIR / "best_sales_model.pkl"
-    nb_target_pkl = config.NOTEBOOK_SAVED_MODELS_DIR / "best_sales_model.pkl"
+    Expected columns: actual, prediction, has_history. No cold-start model is
+    trained or recreated here.
+    """
+    if not path:
+        return None
+    source = Path(path)
+    if not source.exists():
+        raise FileNotFoundError(f"Cold-start evaluation file not found: {source}")
+    if source.suffix.lower() == ".parquet":
+        df = pd.read_parquet(source)
+    else:
+        df = pd.read_csv(source)
+    required = {"actual", "prediction", "has_history"}
+    missing = required - set(df.columns)
+    if missing:
+        raise ValueError(f"Cold-start file missing columns: {sorted(missing)}")
+    return df
 
-    metadata = {
-        "target": "next_week_product_revenue_brl",
-        "evaluation": "rolling_origin_one_week_ahead",
-        "forecast_granularity": "product_week",
-        "synthetic_marketing_used": False,
-        "best_params": best_params,
-        "n_features": int(X_test.shape[1]),
-        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
-    }
-    persistence.save_artifacts(pipeline=pipeline, model=best_model, filepath=target_pkl, metadata=metadata)
-    persistence.save_artifacts(pipeline=pipeline, model=best_model, filepath=nb_target_pkl, metadata=metadata)
-    logger.info(f"💾 Đã đóng gói thành công Artifact vào: {target_pkl}")
 
-    # 2. Demo kiểm chứng mẫu Test
-    print("\n► DEMO 1: KIỂM CHỨNG SUY LUẬN TRÊN 5 MẪU TẬP TEST SET (ĐƠN VỊ: BRL):")
-    demo_df = predictor.demo_prediction(model=best_model, pipeline=pipeline, X_test=X_test, y_test=y_test, n_samples=5)
-    print(demo_df.to_string(index=False))
+def _run_my_step10_scenarios(model: Any, pipeline: Any, *, scenario_file: str | None = None) -> dict:
+    """Coordinate My's deployment functions without duplicating their logic.
 
-    # 3. Kịch bản 1: Ra mắt Sản phẩm Mới
-    print("\n► DEMO 2: KỊCH BẢN RA MẮT SẢN PHẨM MỚI (NEW PRODUCT LAUNCH):")
+    predictor.py is the service boundary. If the functions are not yet present,
+    the result records that fact instead of silently implementing a second copy.
+    """
+    if scenario_file:
+        source = Path(scenario_file)
+        if not source.exists():
+            raise FileNotFoundError(f"Scenario file not found: {source}")
+        if source.suffix.lower() == ".json":
+            return json.loads(source.read_text(encoding="utf-8"))
+        if source.suffix.lower() == ".csv":
+            return pd.read_csv(source).to_dict(orient="records")
+
+    results: dict[str, Any] = {}
     new_spec = {
         "product_category_name": "informatica_acessorios",
         "price": 180.0,
         "freight_value": 22.5,
         "product_weight_g": 650.0,
-        "ad_spend": 350.0
+        "ad_spend": 350.0,
     }
-    forecast = predictor.predict_scenario_new_product(product_spec=new_spec, model=best_model, pipeline=pipeline)
-    for k, v in forecast.items():
-        print(f"  • {k:<25}: {v}")
 
-    # 4. Kịch bản 2: Biến thiên Ngân sách Marketing
-    print("\n► DEMO 3: KỊCH BẢN BIẾN THIÊN NGÂN SÁCH MARKETING (AD SPEND SCALING):")
-    mkt_df = predictor.predict_scenario_marketing_campaign(
-        base_product=new_spec,
-        ad_spend_levels=[100.0, 500.0, 1000.0, 2000.0, 5000.0],
-        model=best_model,
-        pipeline=pipeline
-    )
-    print(mkt_df.to_string(index=False))
+    fn = getattr(predictor, "predict_scenario_new_product", None)
+    if callable(fn):
+        results["new_product_launch"] = fn(
+            product_spec=new_spec, model=model, pipeline=pipeline
+        )
+    else:
+        results["new_product_launch"] = {
+            "status": "not_available",
+            "message": "My's predictor.predict_scenario_new_product is not implemented yet.",
+        }
 
-    # 5. Kịch bản 3: Bảng tính Doanh thu theo Giả định Sản lượng (Discount Scenario Calculation)
-    print("\n► DEMO 4: BẢNG TÍNH DOANH THU THEO GIẢ ĐỊNH SẢN LƯỢNG (DISCOUNT SCENARIO):")
-    print("  (Lưu ý: Phép tính giả định số học, không phải dự báo tác động can thiệp của ML)")
-    promo_df = predictor.calculate_discount_scenario(
-        original_price=float(new_spec.get("price", 180.0)),
-        discount_rates=[0.0, 0.1, 0.2, 0.3, 0.5],
-        assumed_units=10,
-        reference_revenue=float(new_spec.get("price", 180.0)) * 10
+    fn = getattr(predictor, "predict_scenario_marketing_campaign", None)
+    if callable(fn):
+        results["marketing_campaign"] = fn(
+            base_product=new_spec,
+            ad_spend_levels=[100.0, 500.0, 1000.0, 2000.0, 5000.0],
+            model=model,
+            pipeline=pipeline,
+        )
+        if isinstance(results["marketing_campaign"], pd.DataFrame):
+            results["marketing_campaign"] = results["marketing_campaign"].to_dict(orient="records")
+    else:
+        results["marketing_campaign"] = {
+            "status": "not_available",
+            "message": "My's predictor.predict_scenario_marketing_campaign is not implemented yet.",
+        }
+
+    fn = getattr(predictor, "calculate_discount_scenario", None)
+    if callable(fn):
+        promo = fn(
+            original_price=float(new_spec["price"]),
+            discount_rates=[0.0, 0.1, 0.2, 0.3, 0.5],
+            assumed_units=10,
+            reference_revenue=float(new_spec["price"]) * 10,
+        )
+        results["black_friday_discount"] = (
+            promo.to_dict(orient="records") if isinstance(promo, pd.DataFrame) else promo
+        )
+    else:
+        results["black_friday_discount"] = {
+            "status": "not_available",
+            "message": "My's predictor.calculate_discount_scenario is not implemented yet.",
+        }
+
+    return results
+
+
+def step_8_to_10_task3(
+    *,
+    trained_dict: Dict[str, Any],
+    best_tuned_model: Any,
+    best_params: dict,
+    X_test: Any,
+    y_test_log: np.ndarray,
+    pipeline: Any,
+    feature_names: list[str],
+    cleaned_df: pd.DataFrame,
+    cold_start_file: str | None = None,
+    scenario_file: str | None = None,
+    fast_mode: bool = False,
+) -> dict:
+    """Huyền's Task 3 orchestration for evaluation, figures and error analysis.
+
+    Task 1-2 training/pipeline code is untouched. This function consumes their
+    fitted artifacts and delegates business prediction scenarios to My's
+    predictor service.
+    """
+    print_section_header("TASK 3 - Đánh giá, Trực quan hóa & Phân tích Sai số", step_num=8)
+    task3_start = time.perf_counter()
+
+    # Exactly 4 ML models + 4 baselines for T3.1.
+    ml_names = ["Linear Regression", "Decision Tree", "Random Forest", "Gradient Boosting"]
+    baseline_names = ["Zero Baseline", "Revenue Mean Baseline", "Mean Baseline", "Previous Week Baseline"]
+
+    missing_ml = [name for name in ml_names if name not in trained_dict]
+    missing_baseline = [name for name in baseline_names if name not in trained_dict]
+    if missing_ml or missing_baseline:
+        raise RuntimeError(
+            f"Task 3 requires 4 ML + 4 baselines. Missing ML={missing_ml}, baselines={missing_baseline}"
+        )
+
+    evaluation_models = {name: trained_dict[name]["model"] for name in ml_names}
+    baseline_models = {name: trained_dict[name]["model"] for name in baseline_names}
+    model_predictions_log = _predict_log(evaluation_models, X_test)
+    baseline_predictions_log = _predict_log(baseline_models, X_test)
+
+    y_true_brl = metrics.inverse_log_target(y_test_log)
+    y_true_brl = np.maximum(y_true_brl, 0.0)
+
+    # Select the detailed model using validation only, never by peeking at test.
+    candidates = {name: item["model"] for name, item in trained_dict.items()}
+    candidates["Tuned Model"] = best_tuned_model
+    val_df = preprocessing.weekly_split_data(cleaned_df)[1]
+    val_true_brl = np.maximum(val_df[config.TARGET_COLUMN].to_numpy(dtype=float), 0.0)
+    val_scores = {}
+    for name, model in candidates.items():
+        val_X = pipeline.transform(val_df)
+        if isinstance(val_X, tuple):
+            val_X = val_X[0]
+        pred_log = np.asarray(model.predict(val_X), dtype=float)
+        val_scores[name] = metrics.rmse(val_true_brl, np.maximum(0.0, np.expm1(pred_log)))
+    selected_name = min(val_scores, key=val_scores.get)
+    selected_model = candidates[selected_name]
+
+    # T3.1 - metrics on real BRL scale; inverse log exactly once inside metrics.
+    metrics_df = metrics.compare_models_and_baselines(
+        y_true_brl,
+        model_predictions_log,
+        baseline_predictions_log,
+        model_predictions_are_log=True,
+        baseline_predictions_are_log=True,
+        output_dir=config.METRICS_DIR,
     )
-    print(promo_df.to_string(index=False))
+    metrics.save_metrics_json(metrics_df, output_dir=config.METRICS_DIR)
+
+    # Add optional Hurdle/Tuned evaluation without changing the required 4+4 table.
+    extra_rows = []
+    for name in ["Two-Stage Hurdle", "Tuned Model"]:
+        if name in candidates:
+            pred_log = np.asarray(candidates[name].predict(X_test), dtype=float)
+            extra_rows.append(metrics.calculate_metrics(
+                y_true_brl, pred_log, predictions_are_log=True,
+                model_name=name, model_type="additional_model"
+            ))
+    if extra_rows:
+        pd.DataFrame(extra_rows).to_csv(config.METRICS_DIR / "additional_model_metrics.csv", index=False)
+
+    selected_pred_log = np.asarray(selected_model.predict(X_test), dtype=float)
+    selected_pred_brl = np.maximum(0.0, np.expm1(selected_pred_log))
+    evaluation_df = _build_evaluation_frame(
+        preprocessing.weekly_split_data(cleaned_df)[2], y_true_brl, selected_pred_brl
+    )
+
+    # T3.3 - Top 20 + grouping + possible causes.
+    top20 = error_analysis.extract_top_20_errors(evaluation_df)
+    full_errors = error_analysis.build_error_table(evaluation_df)
+    error_analysis.save_error_analysis(full_errors, config.METRICS_DIR)
+    error_groups = error_analysis.summarize_error_groups(full_errors)
+
+    # T3.2 - exactly 18 figures.
+    feature_importance_df = _feature_importance_frame(selected_model, feature_names)
+    figures = visualization.generate_all_figures(
+        y_true_brl,
+        selected_pred_brl,
+        metrics_df,
+        error_df=top20,
+        feature_importance_df=feature_importance_df,
+        output_dir=config.FIGURES_DIR,
+    )
+    visualization.validate_18_figures(config.FIGURES_DIR)
+
+    # Cold-start: evaluate handed-over predictions only; no new algorithm.
+    cold_start_df = _load_optional_cold_start(cold_start_file)
+    cold_start_result = None
+    if cold_start_df is not None:
+        cold_start_result = cold_start.evaluate_cold_start(
+            cold_start_df, output_dir=config.METRICS_DIR
+        )
+
+    # T3.4 coordination at step 10: call My's deployment service boundary.
+    scenario_results = _run_my_step10_scenarios(
+        selected_model, pipeline, scenario_file=scenario_file
+    )
+
+    # Reporting receives scenario output from My without importing listing logic.
+    report = reporting.build_report(
+        metrics_df=metrics_df,
+        top_errors_df=top20,
+        cold_start_df=cold_start_result,
+        error_groups_df=error_groups,
+        feature_importance_df=feature_importance_df,
+        scenario_results=scenario_results,
+        figure_dir=config.FIGURES_DIR,
+    )
+    report_paths = reporting.save_report(report, output_dir=config.METRICS_DIR)
+
+    # Save a compact validation-selection record.
+    pd.DataFrame([
+        {"Model": name, "Validation_RMSE_BRL": score, "Selected": name == selected_name}
+        for name, score in val_scores.items()
+    ]).to_csv(config.METRICS_DIR / "validation_comparison.csv", index=False)
+
+    # Persistence for My's predictor: save the already-fitted pipeline/model only.
+    target_pkl = config.SAVED_MODELS_DIR / "best_sales_model.pkl"
+    metadata = {
+        "target": "next_week_product_revenue_brl",
+        "evaluation": "rolling_origin_one_week_ahead",
+        "forecast_granularity": "product_week",
+        "target_scale": "BRL",
+        "selected_model": selected_name,
+        "best_params": best_params,
+        "n_features": int(X_test.shape[1]),
+        "task3_mode": "fast" if fast_mode else "full",
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    persistence.save_artifacts(
+        pipeline=pipeline,
+        model=selected_model,
+        filepath=target_pkl,
+        metadata=metadata,
+    )
+
+    elapsed = time.perf_counter() - task3_start
+    manifest = {
+        "task": "Task 3",
+        "mode": "fast" if fast_mode else "full",
+        "runtime_seconds": elapsed,
+        "selected_model": selected_name,
+        "metrics_rows": int(len(metrics_df)),
+        "required_model_count": 4,
+        "required_baseline_count": 4,
+        "figure_count": len(figures),
+        "top20_count": len(top20),
+        "cold_start_evaluated": cold_start_result is not None,
+        "scenario_results_received": bool(scenario_results),
+    }
+    (config.METRICS_DIR / "task3_run_manifest.json").write_text(
+        json.dumps(manifest, indent=2, ensure_ascii=False, default=str), encoding="utf-8"
+    )
+
+    logger.info(
+        "Task 3 hoàn tất: selected=%s, metrics=%d rows, figures=%d, top20=%d, runtime=%.2fs",
+        selected_name, len(metrics_df), len(figures), len(top20), elapsed,
+    )
+    return {
+        "metrics": metrics_df,
+        "top20": top20,
+        "error_groups": error_groups,
+        "cold_start": cold_start_result,
+        "figures": figures,
+        "report": report,
+        "report_paths": report_paths,
+        "scenario_results": scenario_results,
+        "selected_model": selected_name,
+        "runtime_seconds": elapsed,
+    }
+
+
+def parse_task3_arguments() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Sales Predictor - Task 3 evaluation orchestrator"
+    )
+    parser.add_argument("--mode", choices=["fast", "full"], default="full")
+    parser.add_argument("--skip-eda", action="store_true")
+    parser.add_argument("--skip-tuning", action="store_true")
+    parser.add_argument("--force-reprocess", action="store_true")
+    parser.add_argument("--cold-start-file", default=None,
+                        help="CSV/Parquet bàn giao từ Task 2/My: actual,prediction,has_history")
+    parser.add_argument("--scenario-file", default=None,
+                        help="JSON/CSV kết quả kịch bản bàn giao từ My (nếu đã chạy riêng)")
+    return parser.parse_args()
 
 
 def main() -> None:
-    """Hàm điều phối trung tâm của toàn bộ hệ thống"""
-    args = parse_arguments()
-    t_global_start = time.time()
+    """Điểm vào duy nhất: giữ nguyên Task 1-2, Huyền điều phối Task 3."""
+    args = parse_task3_arguments()
+    fast_mode = args.mode == "fast"
+    started = time.perf_counter()
 
-    print("\n" + "#" * 80)
-    print("🚀 BẮT ĐẦU CHẠY TOÀN BỘ PIPELINE PRODUCT SALES PREDICTOR (FROM-SCRATCH NUMPY) 🚀".center(80))
-    print("#" * 80)
-    logger.info(f"Cấu hình thực thi: Fast Mode={args.fast_mode}, Skip EDA={args.skip_eda}, Skip Tuning={args.skip_tuning}, Force Reprocess={args.force_reprocess}")
+    logger.info(
+        "Run configuration: mode=%s skip_eda=%s skip_tuning=%s force_reprocess=%s",
+        args.mode, args.skip_eda, args.skip_tuning, args.force_reprocess,
+    )
 
-    # Bước 1: Nạp & Khám phá Dữ liệu
+    # ==================== TASK 1-2: GIỮ NGUYÊN ====================
     raw_df = step_1_load_and_explore(config.RAW_DATA_FILE)
-
-    # Bước 2 & 3: Tiền xử lý & Kỹ nghệ đặc trưng
     cleaned_items = step_2_clean_and_preprocess(raw_df)
     cleaned_df = step_3_feature_engineering(cleaned_items)
 
-    # Bước 4: EDA Biểu đồ phân tích
     if not args.skip_eda:
         eda_train, _, _ = preprocessing.weekly_split_data(cleaned_df)
         step_4_eda_visualizations(eda_train)
-    else:
-        logger.info("⏩ Bỏ qua bước EDA theo cờ --skip-eda")
 
-    # Bước 5: Phân chia Temporal 8:1:1 & Fit Data Pipeline
     X_train, X_val, X_test, y_train, y_val, y_test, pipeline = step_5_split_and_pipeline(
-        df=cleaned_df,
-        force_reprocess=args.force_reprocess
+        df=cleaned_df, force_reprocess=args.force_reprocess
     )
-
-    # Nạp danh sách tên đặc trưng nếu có
     feature_names = []
     if config.CACHE_FEATURE_NAMES.exists():
-        with open(config.CACHE_FEATURE_NAMES, "r", encoding="utf-8") as f:
-            feature_names = json.load(f)
+        feature_names = json.loads(config.CACHE_FEATURE_NAMES.read_text(encoding="utf-8"))
 
-    # Bước 6: Huấn luyện 4 mô hình From Scratch
-    trained_dict = step_6_train_models(X_train, y_train, fast_mode=args.fast_mode, pipeline=pipeline)
-
-    # Bước 7: Tối ưu Siêu tham số trên Validation 10%
+    trained_dict = step_6_train_models(
+        X_train, y_train, fast_mode=fast_mode, pipeline=pipeline
+    )
     best_tuned_model, best_params = step_7_hyperparameter_tuning(
-        X_train=X_train,
-        y_train=y_train,
-        X_val=X_val,
-        y_val=y_val,
-        skip_tuning=args.skip_tuning,
-        fast_mode=args.fast_mode
+        X_train, y_train, X_val, y_val,
+        skip_tuning=args.skip_tuning, fast_mode=fast_mode
     )
 
-    # Chỉ chọn mô hình bằng Validation trước khi xem kết quả Test độc lập.
-    candidates = {name: item["model"] for name, item in trained_dict.items()}
-    candidates["Tuned Model"] = best_tuned_model
-    val_sales = np.maximum(0.0, np.expm1(y_val))
-    val_scores = {name: metrics.compute_rmse(val_sales, np.maximum(0.0, np.expm1(model.predict(X_val))))
-                  for name, model in candidates.items()}
-    selected_name = min(val_scores, key=val_scores.get)
-    pd.DataFrame([{"Model": name, "Validation_RMSE_BRL": score,
-                   "Selected": name == selected_name} for name, score in val_scores.items()]).to_csv(
-        config.METRICS_DIR / "validation_comparison.csv", index=False)
-    selected_model = candidates[selected_name]
-    selected_params = best_params if selected_name == "Tuned Model" else {}
-    selected_params = {**selected_params, "selected_model": selected_name,
-                       "validation_rmse_brl": val_scores[selected_name]}
-    logger.info(f"Chọn mô hình bằng Validation RMSE (BRL): {selected_name} | {val_scores[selected_name]:.4f}")
-
-    # Bước 8: Đánh giá độc lập trên Test 10% & Xuất biểu đồ so sánh
-    step_8_evaluate_and_compare(
+    # ==================== TASK 3: HUYỀN ====================
+    task3 = step_8_to_10_task3(
         trained_dict=trained_dict,
         best_tuned_model=best_tuned_model,
+        best_params=best_params,
         X_test=X_test,
-        y_test=y_test
-    )
-
-    # Bước 9: Phân tích Phần dư & Top 20 Worst Predictions
-    step_9_error_analysis(
-        best_model=selected_model,
-        X_test=X_test,
-        y_test=y_test,
-        feature_names=feature_names
-    )
-
-    # Bước 10: Đóng gói Persistence & Demo 3 Kịch bản Kinh doanh
-    step_10_persistence_and_demo(
-        best_model=selected_model,
+        y_test_log=y_test,
         pipeline=pipeline,
-        best_params=selected_params,
-        X_test=X_test,
-        y_test=y_test
+        feature_names=feature_names,
+        cleaned_df=cleaned_df,
+        cold_start_file=args.cold_start_file,
+        scenario_file=args.scenario_file,
+        fast_mode=fast_mode,
     )
 
-    total_time = time.time() - t_global_start
-    print("\n" + "#" * 80)
-    print(f"🎉 TOÀN BỘ PIPELINE ĐÃ HOÀN TẤT THÀNH CÔNG RỰC RỠ TRONG {total_time:.2f} GIÂY! 🎉".center(80))
-    print("#" * 80 + "\n")
+    total = time.perf_counter() - started
+    print("\n" + "=" * 80)
+    print("TASK 3 HOÀN TẤT")
+    print(f"Mô hình chi tiết: {task3['selected_model']}")
+    print(f"Metrics: {len(task3['metrics'])} dòng (4 ML + 4 baseline)")
+    print(f"Biểu đồ: {len(task3['figures'])}/18")
+    print(f"Top 20: {len(task3['top20'])}")
+    print(f"Tổng runtime: {total:.2f}s")
+    print("=" * 80)
 
 
 if __name__ == "__main__":
