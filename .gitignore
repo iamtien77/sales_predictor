@@ -49,3 +49,6 @@ logs/
 # Testing
 .pytest_cache/
 .pytest_temp/
+data/*
+# Local task explanation documents
+/docs/GIAI_THICH_CHI_TIET_TASK_*.docx
