@@ -132,9 +132,10 @@ def predict_scenario_new_product(
     cold_start_model: Optional[Any] = None
 ) -> Dict[str, Any]:
     """
-    Kịch bản 1: Ra mắt Sản phẩm Mới hoàn toàn (New Product Launch).
-    Điền các giá trị kỳ vọng ban đầu cho sản phẩm chưa có lịch sử mua hàng hoặc đánh giá.
-    Nếu truyền cold_start_model, sẽ sử dụng mô hình nội dung chuyên biệt cho tuần mở bán.
+    Helper tương thích cho proxy sản phẩm ít lịch sử.
+    Không có cold_start_model: dùng lịch sử 0, chưa kiểm chứng sản phẩm chưa bán.
+    Nếu có cold_start_model, trả proxy 7 ngày từ giao dịch đầu đã biết;
+    price phải là giá giao dịch đầu, chưa kiểm chứng trước niêm yết.
     """
     # Khởi tạo bản ghi hoàn chỉnh với các giá trị mặc định hợp lý
     base_record = {
@@ -170,22 +171,24 @@ def predict_scenario_new_product(
     sales_pred = predict_sales(model=model, pipeline=pipeline, input_data=df_scenario)
     predicted_val = float(sales_pred[0])
 
-    # Nếu có mô hình Cold-Start chuyên biệt cho tuần ra mắt, tính thêm launch sales
+    # Dùng chung contract proxy sau giao dịch đầu; giữ các key cũ để tương thích.
     launch_sales_est = None
+    cold_result = None
     if cold_start_model is not None:
         try:
-            launch_sales_est = float(cold_start_model.predict(product_spec)[0])
+            cold_result = predict_cold_start_product(product_spec, cold_start_model)
+            launch_sales_est = cold_result["predicted_launch_sales_BRL"]
         except Exception:
             launch_sales_est = None
 
     result = {
         "scenario": "New Product Launch",
-        "interpretation": "Dự báo doanh số tuần đầu tiên. Đã tích hợp mô hình Cold-Start nội dung chuyên biệt." if launch_sales_est is not None else "Ước lượng doanh thu một tuần (zero-history proxy); chưa qua kiểm chứng cold-start riêng.",
+        "interpretation": cold_result["interpretation"] if launch_sales_est is not None else "Ước lượng doanh thu một tuần (zero-history proxy); chưa qua kiểm chứng cold-start riêng.",
         "category": base_record["product_category_name"],
         "listed_price_BRL": base_record["price"],
         "ad_spend_BRL": base_record["ad_spend"],
         "predicted_sales_BRL": round(launch_sales_est if launch_sales_est is not None else predicted_val, 2),
-        "estimated_units_sold": max(0, int(round((launch_sales_est if launch_sales_est is not None else predicted_val) / max(base_record["price"], 1.0))))
+        "estimated_units_sold": cold_result["estimated_launch_units"] if launch_sales_est is not None else max(0, int(round(predicted_val / max(base_record["price"], 1.0))))
     }
     if launch_sales_est is not None:
         result["cold_start_model_used"] = True
@@ -198,17 +201,17 @@ def predict_cold_start_product(
     cold_start_model: Optional[Any] = None
 ) -> Dict[str, Any]:
     """
-    Dự báo doanh số tuần mở bán đầu tiên (Launch Week Sales) cho sản phẩm mới ra mắt (Cold-Start).
-    Sử dụng đặc trưng nội dung: Giá niêm yết, danh mục, kích thước, khối lượng, số lượng ảnh.
+    Proxy doanh thu 7 ngày từ giao dịch đầu, bao gồm giao dịch đầu đã biết.
+    Sử dụng giá giao dịch đầu và metadata snapshot; chưa kiểm chứng trước niêm yết.
     
     Parameters:
     -----------
-    product_spec: Dict chứa thông tin sản phẩm mới (price, product_category_name, product_weight_g, ...)
-    cold_start_model: Đối tượng ColdStartProductRegressor (hoặc None để dùng baseline quy luật giá)
+    product_spec: Dict chứa giá giao dịch đầu (price) và metadata sản phẩm.
+    cold_start_model: ColdStartProductRegressor (hoặc None để dùng baseline một đơn vị).
     
     Returns:
     --------
-    Dict chứa doanh thu dự báo tuần đầu (BRL), sản lượng ước tính và diễn giải nghiệp vụ.
+    Dict chứa doanh thu cửa sổ 7 ngày (BRL), sản lượng ước tính và giới hạn proxy.
     """
     price = float(product_spec.get("price", 100.0))
     if price <= 0 or not np.isfinite(price):

@@ -20,7 +20,8 @@ class LinearRegressionFromScratch(BaseRegressorFromScratch):
     Hỗ trợ 2 bộ giải (solvers):
       - 'normal_equation' (mặc định): Nghiệm giải tích đóng OLS w = (X^T X + lambda I)^(-1) X^T y.
         Sử dụng Ridge regularization nhỏ (alpha_ridge=1e-5) và pseudo-inverse chống singular matrix.
-      - 'gradient_descent': Tối ưu hóa Gradient Descent lặp theo gradient hàm MSE.
+      - 'gradient_descent': Tối ưu cùng objective (SSE + alpha_ridge * ||w||²) / n.
+        Không phạt intercept; cost_history_ chỉ ghi MSE để giữ tương thích.
     
     Cơ chế Clamping (clip_predictions):
       - Mặc định True: Kẹp biên thích ứng [min_y - 0.5*span, max_y + 0.5*span],
@@ -120,9 +121,10 @@ class LinearRegressionFromScratch(BaseRegressorFromScratch):
                 cost = float(np.mean(error ** 2))
                 self.cost_history_.append(cost)
 
-                gradient = (2.0 / n) * (X_b.T @ error) + (2.0 * self.alpha_ridge * w)
+                ridge_gradient = (2.0 * self.alpha_ridge / n) * w
                 if self.fit_intercept:
-                    gradient[0] -= 2.0 * self.alpha_ridge * w[0]
+                    ridge_gradient[0] = 0.0
+                gradient = (2.0 / n) * (X_b.T @ error) + ridge_gradient
                 w -= self.learning_rate * gradient
 
             self.weights_ = w

@@ -31,7 +31,7 @@ Lớp `LinearRegressionFromScratch` hỗ trợ hai bộ giải:
 Cực tiểu hóa hàm mất mát bình phương tối thiểu (Ordinary Least Squares - OLS) có bổ sung điều chuẩn Ridge nhỏ ($\alpha_{\text{ridge}} = 10^{-5}$) nhằm chống suy biến ma trận:
 
 $$
-J(\tilde{w}) = \frac{1}{N} \|\tilde{X} \tilde{w} - y\|_2^2 + \alpha_{\text{ridge}} \|w\|_2^2
+J(\tilde{w}) = \frac{1}{N} \left(\|\tilde{X} \tilde{w} - y\|_2^2 + \alpha_{\text{ridge}} \|w\|_2^2\right)
 $$
 
 Nghiệm giải tích đóng được xác định bằng giải thuật giả nghịch đảo Moore-Penrose (`np.linalg.pinv`):
@@ -46,7 +46,7 @@ Trong đó $I_0$ là ma trận đơn vị có phần tử đầu tiên bằng 0 
 Khởi tạo trọng số ngẫu nhiên $w^{(0)} \sim \mathcal{N}(0, 0.01)$ và cập nhật lặp qua $T$ vòng:
 
 $$
-\nabla_{\tilde{w}} J = \frac{2}{N} \tilde{X}^\top (\tilde{X} \tilde{w} - y) + 2 \alpha_{\text{ridge}} \begin{bmatrix} 0 \\ w \end{bmatrix}
+\nabla_{\tilde{w}} J = \frac{2}{N} \tilde{X}^\top (\tilde{X} \tilde{w} - y) + \frac{2\alpha_{\text{ridge}}}{N} \begin{bmatrix} 0 \\ w \end{bmatrix}
 $$
 
 $$
@@ -54,6 +54,8 @@ $$
 $$
 
 ---
+
+Hai solver dùng cùng quy ước `alpha_ridge`, không phạt intercept. Khi Gradient Descent hội tụ, nghiệm phải khớp Normal Equation trong sai số số học. `cost_history_` chỉ lưu MSE, không gồm phần phạt Ridge. Việc sửa hệ số gradient không cập nhật artifact hay kết quả thực nghiệm đã lưu; cần huấn luyện lại các model dùng Gradient Descent nếu muốn áp dụng công thức mới.
 
 ## 2. Input / Output (Đầu vào & Đầu ra)
 

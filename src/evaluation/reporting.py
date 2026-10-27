@@ -57,6 +57,7 @@ Chế độ huấn luyện tuần: **{mode}**. Thời điểm huấn luyện tu�
 RMSE và MAE phản ánh các mục tiêu khác nhau; không suy ra lợi ích tồn kho chỉ từ R².
 Chi phí là điểm phạt giả định trên sai lệch doanh thu, không phải chi phí vận hành được đo thực tế.
 Chưa có đánh giá riêng precision/recall cho phát hiện tuần nhu cầu đột biến.
+Kết quả tuần dùng snapshot `delivered` cuối kỳ, chưa tái dựng trạng thái đơn hàng tại từng forecast origin; chưa đo ảnh hưởng của hạn chế này lên metrics.
 
 ### 4.2. Proxy bảy ngày từ giao dịch đầu tiên
 
@@ -70,6 +71,8 @@ Giá là giá giao dịch đầu tiên. Mọi cửa sổ nhãn phải có đủ 
 So sánh cả baseline danh mục và baseline một sản phẩm (`sales = first_price`).
 Không chọn mô hình bằng Test: cây với tham số cố định là ứng viên thực nghiệm được lưu,
 không được gọi là tốt nhất nếu baseline thắng. Tỷ lệ Test chỉ bán một đơn vị: **{manifest['test_single_unit_fraction']:.2%}**.
+
+Với sản phẩm chỉ bán một đơn vị trong cửa sổ bảy ngày, target bằng đúng giá giao dịch đầu đã biết, nên baseline `sales = first_price` dự báo chính xác. Tỷ lệ lớn của nhóm này giải thích vì sao baseline là đối chứng mạnh; cần đọc MAE và RMSE trong bảng trên để xác định mô hình nào thắng trong lần chạy được báo cáo, không suy rộng cho mọi tập dữ liệu. Cây gom nhiều sản phẩm vào mỗi lá và học trên `log1p(sales)`, nên không bắt buộc giữ quan hệ `sales = first_price`; phép nghịch đảo log cũng không tối ưu trực tiếp MSE trên BRL. Đây là các cơ chế có thể góp phần gây sai số, chưa phải kết luận nhân quả từ một thí nghiệm ablation.
 
 Giới hạn: mốc bắt đầu là lần bán đầu, không phải ngày niêm yết; target bao gồm giao dịch đầu đã biết.
 Không có sản phẩm chưa bán; metadata sản phẩm và trạng thái delivered là snapshot cuối,

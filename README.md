@@ -101,13 +101,13 @@ Nhằm chứng minh giá trị gia tăng thực sự của các thuật toán ph
 - `CustomImputer`: Điền giá trị khuyết thiếu (Median cho biến số, Mode cho biến phân loại) fit duy nhất trên tập Train.
 - `CustomOneHotEncoder`: Mã hóa các biến danh mục sang ma trận nhị phân thưa (Sparse CSR Matrix), tự động gán vector 0 cho các nhãn mới xuất hiện ở Test.
 - `CustomStandardScaler`: Chuẩn hóa Z-Score $Z = (X - \mu) / (\sigma + 10^{-8})$ dựa trên tham số phân phối của Train.
-- `CustomDataPipeline`: Đóng gói quy trình biến đổi thành một chuỗi duy nhất, tích hợp kiểm tra kiểu dữ liệu và ngăn chặn hoàn toàn rò rỉ thông tin tương lai (*Data Leakage*).
+- `CustomDataPipeline`: Đóng gói quy trình biến đổi thành một chuỗi duy nhất, tích hợp kiểm tra kiểu dữ liệu; các tham số imputation, encoding và scaling chỉ được fit trên Train để hạn chế rò rỉ thống kê từ Validation/Test.
 
 ---
 
 ## 📊 3. Hệ thống Kỹ nghệ Đặc trưng (Feature Taxonomy - 89 Features)
 
-Tất cả các đặc trưng đầu vào đều tuân thủ nguyên tắc: **Chỉ sử dụng dữ liệu đã biết trước thời điểm 00:00 của thứ Hai tuần dự báo**.
+Các phép lag và rolling sử dụng các tuần trước tuần dự báo; mục tiêu thiết kế là chỉ dùng thông tin đã biết trước 00:00 thứ Hai. Tuy nhiên, nguồn hiện tại lọc theo trạng thái cuối kỳ `delivered` rồi tổng hợp theo ngày mua. Tại thời điểm dự báo, kết quả giao hàng cuối cùng của một số đơn quá khứ chưa được biết. Vì vậy đây là **backtest trên snapshot lịch sử**, chưa bảo đảm mọi feature đều khả dụng tại forecast origin và chưa thể khẳng định chống leakage tuyệt đối. Temporal split và fit preprocessing trên Train không tự khắc phục hạn chế này. Để kiểm chứng theo thời điểm thực, cần xác định doanh thu đặt hàng hay doanh thu hoàn tất và tái dựng trạng thái đơn hàng theo thời gian; phạm vi hiện tại chưa thực hiện bước đó.
 
 | Nhóm đặc trưng              | Tên cột / Thuộc tính    | Ý nghĩa nghiệp vụ & Quy tắc tính toán                                                                        |
 | :------------------------------ | :-------------------------- | :------------------------------------------------------------------------------------------------------------------ |
@@ -134,7 +134,6 @@ Tất cả các đặc trưng đầu vào đều tuân thủ nguyên tắc: **Ch
 ## 🏆 4. Kết quả thực nghiệm hiện tại
 
 <!-- GENERATED RESULTS: python -m src.evaluation.reporting -->
-
 Các bảng dưới được sinh trực tiếp từ CSV trong `results/metrics` và artifact triển khai.
 Chạy `.venv/Scripts/python.exe -m src.evaluation.reporting` để đồng bộ sau thực nghiệm.
 Mô hình tuần được chọn bằng Validation: **Two-Stage Hurdle**, Validation RMSE **59.2188 BRL**.
@@ -143,22 +142,23 @@ Chế độ huấn luyện tuần: **Không được lưu trong lần chạy cũ
 
 ### 4.1. Dự báo sản phẩm–tuần (Test, BRL)
 
-| Model                  | MSE           | MAE     | RMSE      | R2          | WAPE    | Cost_Per_Item_BRL | Fit Time (s) | Target_Scale |
-| ---------------------- | ------------- | ------- | --------- | ----------- | ------- | ----------------- | ------------ | ------------ |
-| Two-Stage Hurdle       | 2585.0102     | 8.6032  | 50.8430   | 0.0559      | 2.0105  | 45.4800           | 0.3600       | BRL          |
-| Decision Tree          | 2674.6362     | 4.4362  | 51.7169   | 0.0232      | 1.0367  | 41.6627           | 0.7000       | BRL          |
-| Tuned Model            | 2697.7820     | 4.4039  | 51.9402   | 0.0148      | 1.0291  | 42.4060           | 0.0000       | BRL          |
-| Random Forest          | 2725.0833     | 4.4273  | 52.2023   | 0.0048      | 1.0346  | 42.6747           | 0.7700       | BRL          |
-| Gradient Boosting      | 2733.2544     | 4.4465  | 52.2805   | 0.0018      | 1.0391  | 42.8263           | 2.0400       | BRL          |
-| Revenue Mean Baseline  | 2752.2779     | 11.8955 | 52.4622   | -0.0052     | 2.7798  | 56.3489           | 0.0000       | BRL          |
-| Mean Baseline          | 2754.5202     | 4.5026  | 52.4835   | -0.0060     | 1.0522  | 43.1895           | 0.0000       | BRL          |
-| Zero Baseline          | 2756.4820     | 4.2792  | 52.5022   | -0.0067     | 1.0000  | 42.7919           | 0.0000       | BRL          |
-| Previous Week Baseline | 5683.5250     | 9.0765  | 75.3892   | -1.0757     | 2.1211  | 42.4533           | 0.0000       | BRL          |
-| Linear Regression      | 29169475.0415 | 76.8349 | 5400.8772 | -10651.9064 | 17.9555 | 185.2979          | 0.0500       | BRL          |
+| Model | MSE | MAE | RMSE | R2 | WAPE | Cost_Per_Item_BRL | Fit Time (s) | Target_Scale |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Two-Stage Hurdle | 2585.0102 | 8.6032 | 50.8430 | 0.0559 | 2.0105 | 45.4800 | 0.3600 | BRL |
+| Decision Tree | 2674.6362 | 4.4362 | 51.7169 | 0.0232 | 1.0367 | 41.6627 | 0.7000 | BRL |
+| Tuned Model | 2697.7820 | 4.4039 | 51.9402 | 0.0148 | 1.0291 | 42.4060 | 0.0000 | BRL |
+| Random Forest | 2725.0833 | 4.4273 | 52.2023 | 0.0048 | 1.0346 | 42.6747 | 0.7700 | BRL |
+| Gradient Boosting | 2733.2544 | 4.4465 | 52.2805 | 0.0018 | 1.0391 | 42.8263 | 2.0400 | BRL |
+| Revenue Mean Baseline | 2752.2779 | 11.8955 | 52.4622 | -0.0052 | 2.7798 | 56.3489 | 0.0000 | BRL |
+| Mean Baseline | 2754.5202 | 4.5026 | 52.4835 | -0.0060 | 1.0522 | 43.1895 | 0.0000 | BRL |
+| Zero Baseline | 2756.4820 | 4.2792 | 52.5022 | -0.0067 | 1.0000 | 42.7919 | 0.0000 | BRL |
+| Previous Week Baseline | 5683.5250 | 9.0765 | 75.3892 | -1.0757 | 2.1211 | 42.4533 | 0.0000 | BRL |
+| Linear Regression | 29169475.0415 | 76.8349 | 5400.8772 | -10651.9064 | 17.9555 | 185.2979 | 0.0500 | BRL |
 
 RMSE và MAE phản ánh các mục tiêu khác nhau; không suy ra lợi ích tồn kho chỉ từ R².
 Chi phí là điểm phạt giả định trên sai lệch doanh thu, không phải chi phí vận hành được đo thực tế.
 Chưa có đánh giá riêng precision/recall cho phát hiện tuần nhu cầu đột biến.
+Kết quả tuần dùng snapshot `delivered` cuối kỳ, chưa tái dựng trạng thái đơn hàng tại từng forecast origin; chưa đo ảnh hưởng của hạn chế này lên metrics.
 
 ### 4.2. Proxy bảy ngày từ giao dịch đầu tiên
 
@@ -167,20 +167,21 @@ Train: **23428** sản phẩm; Test: **8110**;
 loại **483** mẫu Train có cửa sổ nhãn vượt mốc **2018-04-24T00:00:00**.
 Giá là giá giao dịch đầu tiên. Mọi cửa sổ nhãn phải có đủ bảy ngày quan sát.
 
-| Model                           | MAE_BRL  | RMSE_BRL | R2_Score | Test_Count |
-| ------------------------------- | -------- | -------- | -------- | ---------- |
-| CategoryMedianColdStartBaseline | 126.6543 | 313.9562 | 0.0022   | 8110       |
-| SingleUnitPriceBaseline         | 23.0145  | 120.9134 | 0.8520   | 8110       |
-| ColdStartProductRegressor       | 39.7939  | 135.4682 | 0.8142   | 8110       |
+| Model | MAE_BRL | RMSE_BRL | R2_Score | Test_Count |
+| --- | --- | --- | --- | --- |
+| CategoryMedianColdStartBaseline | 126.6543 | 313.9562 | 0.0022 | 8110 |
+| SingleUnitPriceBaseline | 23.0145 | 120.9134 | 0.8520 | 8110 |
+| ColdStartProductRegressor | 39.7939 | 135.4682 | 0.8142 | 8110 |
 
 So sánh cả baseline danh mục và baseline một sản phẩm (`sales = first_price`).
 Không chọn mô hình bằng Test: cây với tham số cố định là ứng viên thực nghiệm được lưu,
 không được gọi là tốt nhất nếu baseline thắng. Tỷ lệ Test chỉ bán một đơn vị: **85.47%**.
 
+Với sản phẩm chỉ bán một đơn vị trong cửa sổ bảy ngày, target bằng đúng giá giao dịch đầu đã biết, nên baseline `sales = first_price` dự báo chính xác. Tỷ lệ lớn của nhóm này giải thích vì sao baseline là đối chứng mạnh; bảng trên mới là bằng chứng nó thắng cây về MAE và RMSE trong lần chạy đã lưu, không phải kết luận cho mọi tập dữ liệu. Cây gom nhiều sản phẩm vào mỗi lá và học trên `log1p(sales)`, nên không bắt buộc giữ quan hệ `sales = first_price`; phép nghịch đảo log cũng không tối ưu trực tiếp MSE trên BRL. Đây là các cơ chế có thể góp phần gây sai số, chưa phải kết luận nhân quả từ một thí nghiệm ablation.
+
 Giới hạn: mốc bắt đầu là lần bán đầu, không phải ngày niêm yết; target bao gồm giao dịch đầu đã biết.
 Không có sản phẩm chưa bán; metadata sản phẩm và trạng thái delivered là snapshot cuối,
 chưa có lịch sử để xác minh chúng sẵn có tại thời điểm dự báo. Chưa chứng minh cold-start trước bán.
-
 <!-- END GENERATED RESULTS -->
 
 ## 📁 5. Cấu trúc Thư mục Dự án

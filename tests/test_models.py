@@ -165,6 +165,24 @@ class TestModelsFromScratch(unittest.TestCase):
         r2 = compute_r2(self.y_lin, preds)
         self.assertGreater(r2, 0.98)
 
+    def test_ridge_solvers_agree_with_analytic_solution(self):
+        """Both solvers use SSE + alpha*||w||², without penalizing bias."""
+        for n in (20, 100):
+            for intercept in (False, True):
+                for sparse in (False, True):
+                    with self.subTest(n=n, intercept=intercept, sparse=sparse):
+                        X = np.tile([[-1.0], [1.0]], (n // 2, 1))
+                        y = 2.0 * X[:, 0] + (3.0 if intercept else 0.0)
+                        inputs = sp.csr_matrix(X) if sparse else X
+                        for solver in ('normal_equation', 'gradient_descent'):
+                            model = LinearRegressionFromScratch(
+                                fit_intercept=intercept, solver=solver,
+                                alpha_ridge=1.0, learning_rate=0.05,
+                                n_iterations=1000, clip_predictions=False,
+                            ).fit(inputs, y)
+                            np.testing.assert_allclose(model.coef_, [2.0 * n / (n + 1)], atol=1e-8)
+                            self.assertAlmostEqual(model.intercept_, 3.0 if intercept else 0.0, places=8)
+
     # -------------------------------------------------------------
     # 3. KIỂM THỬ DECISION TREE REGRESSOR FROM SCRATCH
     # -------------------------------------------------------------

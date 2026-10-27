@@ -531,8 +531,8 @@ def step_10_persistence_and_demo(
     demo_df = predictor.demo_prediction(model=best_model, pipeline=pipeline, X_test=X_test, y_test=y_test, n_samples=5)
     print(demo_df.to_string(index=False))
 
-    # 4. Kịch bản 1: Ra mắt Sản phẩm Mới
-    print("\n► DEMO 2: KỊCH BẢN RA MẮT SẢN PHẨM MỚI (NEW PRODUCT LAUNCH):")
+    # 4. Proxy sau giao dịch đầu; giá dưới đây giả định đã quan sát tại giao dịch đầu.
+    print("\n► DEMO 2: PROXY 7 NGÀY TỪ GIAO DỊCH ĐẦU (BAO GỒM GIAO DỊCH ĐÃ BIẾT):")
     new_spec = {
         "product_category_name": "informatica_acessorios",
         "price": 180.0,
@@ -549,7 +549,7 @@ def step_10_persistence_and_demo(
     for k, v in forecast.items():
         print(f"  • {k:<25}: {v}")
     
-    # Minh họa mô hình Cold-Start chuyên biệt cho tuần mở bán
+    # Minh họa cùng proxy sau giao dịch đầu, chưa kiểm chứng trước niêm yết.
     cold_start_res = predictor.predict_cold_start_product(new_spec, cold_start_model=cold_start_model)
     print(f"  • {'cold_start_launch_sales':<25}: {cold_start_res['predicted_launch_sales_BRL']} BRL ({cold_start_res['estimated_launch_units']} sản phẩm) - Động cơ: {cold_start_res['model_engine']}")
 

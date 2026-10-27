@@ -31,6 +31,29 @@ All candidates share exactly the same Test rows:
 The inverse log prediction is not generally an arithmetic conditional expectation
 or a conditional median. Compare both MAE and RMSE instead of assuming superiority.
 
+### Why the single-unit baseline is a strong comparator
+
+The target includes the first transaction, whose price is already an input. When
+only one item is sold during the seven-day window, the target equals that price,
+so the single-unit baseline has zero error on that sample. The saved experiment's
+manifest reports 85.47% single-unit Test products; its evaluation CSV shows lower
+MAE and RMSE for this baseline than for the content tree. This is evidence about
+that saved holdout, not a guarantee that the baseline wins on other datasets.
+
+Tree leaves pool products and predict a mean in log space, so they need not
+preserve the identity `sales = first_price` even for a single-unit product.
+Inverse-transforming that mean also does not directly minimize squared error in
+BRL. These mechanisms may contribute to the observed gap; attributing the gap
+to either one requires a controlled comparison, not just the aggregate scores.
+The single-unit baseline can still underpredict products with additional sales.
+
+The retrospective `delivered` filter also affects the weekly forecasting data:
+orders are grouped by purchase time using their eventual delivery outcome.
+Train-only preprocessing and temporal splits do not make that future outcome
+available at an earlier forecast origin. Weekly results therefore remain an
+offline snapshot backtest until order-state availability is reconstructed and
+the booked-versus-realized revenue target is explicitly resolved.
+
 ## Reproduce
 
 ```powershell

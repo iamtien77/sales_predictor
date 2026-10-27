@@ -260,6 +260,10 @@ def test_scenario_new_product_with_cold_start(trained_mock_pipeline_and_model, s
     assert res.get("cold_start_model_used") is True
     assert "steady_state_proxy_BRL" in res
     assert res["predicted_sales_BRL"] >= 0.0
+    direct = predictor.predict_cold_start_product(prod_spec, cold_start_model=cold_model)
+    assert res["interpretation"] == direct["interpretation"]
+    assert res["predicted_sales_BRL"] == direct["predicted_launch_sales_BRL"]
+    assert "bao gồm giao dịch đầu đã biết" in res["interpretation"]
 
 
 # =====================================================================
