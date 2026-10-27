@@ -1,4 +1,7 @@
 Bản v1. Chiến Lược Tinh Chỉnh Siêu Tham Số Trên Validation 10%
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là thiết lập chiến lược kiểm định Holdout Validation theo thời gian độc lập, tránh rò rỉ dữ liệu của k-fold CV truyền thống.
 
 Bước 1. Xác định hạn chế của k-fold Cross-Validation trong chuỗi thời gian

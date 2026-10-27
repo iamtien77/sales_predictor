@@ -1,4 +1,7 @@
 Bản v4. Phân Tích Hiện Tượng Dữ Liệu Thưa & Zero-Inflation
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là định lượng mức độ thưa thớt của dữ liệu tuần, mổ xẻ nguyên nhân kinh tế và đề xuất định hướng mô hình hóa đặc trị cho phân phối nhiều số 0.
 
 Bước 1. Đo lường tỷ lệ các tuần không có giao dịch (Zero-Sales)

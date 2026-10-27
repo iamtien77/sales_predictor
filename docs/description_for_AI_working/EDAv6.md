@@ -1,4 +1,7 @@
 Bản v6. Phân Bố 73 Ngành Hàng & Ma Trận Tương Quan Đặc Trưng
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là phân tích cơ cấu ngành hàng sản phẩm trên sàn Olist và khảo sát ma trận tương quan giữa các đặc trưng dự báo với biến mục tiêu doanh thu.
 
 Bước 1. Thống kê tỷ trọng doanh thu giữa 73 danh mục sản phẩm Olist

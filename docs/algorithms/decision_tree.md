@@ -1,5 +1,7 @@
 # 🌳 Cây Quyết Định Hồi Quy (Decision Tree Regressor From-Scratch)
 
+> **Snapshot hiện tại:** artifact ghi `2026-10-27 16:26:38`, chế độ `full`, có tuning, 655.066 dòng Train. Nguồn: [Test](../../results/metrics/model_comparison.csv), [Validation](../../results/metrics/validation_comparison.csv), [tuning](../../results/metrics/tuning_history.csv). Thời gian fit thuộc lần chạy này. Kết quả dùng snapshot `delivered` cuối kỳ, chưa bảo đảm khả dụng tại forecast origin.
+
 > **Vị trí trong dự án:** Thuật toán hồi quy phi tuyến tính cốt lõi và là **Mô hình đơn khối tốt nhất (Best Single Model) - Hạng 2 toàn hệ thống** sau khi tinh chỉnh siêu tham số trên tập Validation độc lập. Đây cũng là khối xây dựng cơ sở (Base Learner) cho Random Forest, Gradient Boosting và Two-Stage Hurdle Regressor.  
 > **Mã nguồn triển khai:** Class [`DecisionTreeRegressorFromScratch`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/tree.py#L41) và đối tượng nút [`DecisionTreeNode`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/tree.py#L15) trong [`src/models/tree.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/tree.py), được re-export qua Facade [`src/models/regressors.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/regressors.py).  
 > **Module tinh chỉnh:** Hàm [`tune_decision_tree`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/tuning.py#L141) trong [`src/models/tuning.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/tuning.py).
@@ -105,7 +107,7 @@ $$
 - **Trạng thái:** Hoàn thiện 100% From-Scratch thuần NumPy, không sử dụng thư viện `scikit-learn`.
 - **Tối ưu hóa phân vị Quantiles (`n_quantiles=16`):**
   - Trên tập dữ liệu Train khổng lồ gồm 655.066 dòng, việc duyệt qua toàn bộ các giá trị phân biệt $\mathcal{O}(N \log N)$ cho 89 đặc trưng sẽ gây nghẽn nghiêm trọng tài nguyên CPU.
-  - Mô hình cài đặt kỹ thuật lấy mẫu 16 điểm phân vị ứng viên (`np.percentile`) trải từ phân vị thứ 5 đến 95, giảm thời gian tìm điểm cắt xuống $\mathcal{O}(Q)$ ($Q = 16$), giúp cây huấn luyện xong chỉ trong **15,22 giây**.
+  - Mô hình cài đặt kỹ thuật lấy mẫu 16 điểm phân vị ứng viên (`np.percentile`) trải từ phân vị thứ 5 đến 95, giảm thời gian tìm điểm cắt xuống $\mathcal{O}(Q)$ ($Q = 16$), giúp cây huấn luyện xong chỉ trong **16,55 giây**.
 - **Suy luận vector hóa theo batch masks:**
   - Thay vì duyệt từng dòng qua đệ quy lá (`_predict_row`), hàm `predict` chia tập chỉ số theo mặt nạ nhị phân (`left_mask`, `~left_mask`), tăng tốc độ suy luận gấp hàng chục lần.
 - **Trích xuất độ quan trọng đặc trưng (Feature Importances):**
@@ -124,7 +126,7 @@ Mô hình Decision Tree được quét lưới 6 cấu hình siêu tham số đ�
 | Config 2 | 3 | 30 | 62.4085 | Underfitting tương tự |
 | Config 3 | 5 | 10 | 61.1664 | Bản Default cơ sở |
 | Config 4 | 5 | 30 | 61.1664 | Tương đương bản Default |
-| **Config 5 (Tuned Winner)** | **8** | **10** | **59.2288** | **Tốt nhất toàn diện, giảm RMSE sâu nhất** |
+| **Config 5 (Tuned Winner)** | **8** | **10** | **59.2288** | **RMSE thấp nhất trong grid Decision Tree** |
 | Config 6 | 8 | 30 | 59.3857 | Giới hạn lá quá chặt làm giảm độ linh hoạt |
 
 Hệ thống chính thức chọn cấu hình **`max_depth=8, min_samples_leaf=10`** làm **Tuned Model (Mô hình đơn khối tốt nhất)**.
@@ -133,11 +135,11 @@ Hệ thống chính thức chọn cấu hình **`max_depth=8, min_samples_leaf=1
 
 | Phiên bản / Mô hình | MSE ($\text{BRL}^2$) | MAE (BRL) | RMSE (BRL) | $R^2$ Score | WAPE | Supply Chain Cost (BRL) | Fit Time (s) | Xếp hạng toàn hệ thống |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| *Two-Stage Hurdle (Tham chiếu)* | *2.423,73* | *8,44* | *49,23* | *+0,1148* | *1,97* | *44,80* | *38,32s* | *🥇 Hạng 1 (Winner)* |
+| *Two-Stage Hurdle (Tham chiếu)* | *2.423,73* | *8,44* | *49,23* | *+0,1148* | *1,97* | *44,80* | *15,08s* | *🥇 Hạng 1 (Winner)* |
 | **Tuned Decision Tree (Best Single Model)** | **2.541,22** | **4,30** | **50,41** | **+0,0719** | **1,00** | **40,62** | — | **🥈 Hạng 2 (Đơn khối tốt nhất)** |
-| Decision Tree (Default) | 2.615,33 | 4,33 | 51,14 | +0,0449 | 1,01 | 41,26 | 32,77s | 🥉 Hạng 3 |
+| Decision Tree (Default) | 2.615,33 | 4,33 | 51,14 | +0,0449 | 1,01 | 41,26 | 16,55s | 🥉 Hạng 3 |
 
 ### 6.3. Nhận xét kỹ thuật & Trade-offs
-1. **Năng lực vượt trội so với Baseline:** Cả hai phiên bản Decision Tree đều đạt $R^2 > 0$ và đánh bại hoàn toàn 4 mô hình Baseline (Zero, Revenue Mean, Log Mean, Previous Week có $R^2 < 0$).
-2. **Hiệu quả của việc tinh chỉnh (Tuning):** Khi nâng độ sâu từ `max_depth=5` lên `max_depth=8` kết hợp ràng buộc `min_samples_leaf=10`, RMSE trên tập Test giảm từ 51,14 BRL xuống **50,41 BRL** (giảm 0,73 BRL), đồng thời hệ số xác định $R^2$ tăng từ 0,0449 lên **0,0719** (+60,1% năng lực giải thích phương sai). Đặc biệt, mô hình đạt chi phí chuỗi cung ứng thấp nhất toàn dự án (**40,62 BRL/sản phẩm**) và MAE tối ưu (**4,30 BRL**).
-3. **Ưu thế tốc độ & Khả năng mở rộng:** Nhờ cơ chế Quantile Split Candidates, cây đạt tốc độ huấn luyện vượt trội (32,77s so với 318,54s của Gradient Boosting) và đóng vai trò làm nền tảng vững chắc cho cả mô hình Two-Stage Hurdle và các giải pháp Ensemble.
+1. **Năng lực vượt trội so với Baseline:** Cả hai phiên bản Decision Tree đều đạt $R^2 > 0$ và có RMSE thấp hơn 4 mô hình Baseline (Zero, Revenue Mean, Log Mean, Previous Week có $R^2 < 0$).
+2. **Hiệu quả của việc tinh chỉnh (Tuning):** Khi nâng độ sâu từ `max_depth=5` lên `max_depth=8` kết hợp ràng buộc `min_samples_leaf=10`, RMSE trên tập Test giảm từ 51,14 BRL xuống **50,41 BRL** (giảm 0,73 BRL), đồng thời hệ số xác định $R^2$ tăng từ 0,0449 lên **0,0719** (+60,1% năng lực giải thích phương sai). Đặc biệt, mô hình đạt điểm phạt chi phí giả định thấp nhất toàn dự án (**40,62 BRL/sản phẩm**) và MAE **4,30 BRL**, vẫn cao hơn Zero Baseline (4,28 BRL).
+3. **Ưu thế tốc độ & Khả năng mở rộng:** Nhờ cơ chế Quantile Split Candidates, cây đạt tốc độ huấn luyện vượt trội (16,55s so với 138,50s của Gradient Boosting) và đóng vai trò làm nền tảng vững chắc cho cả mô hình Two-Stage Hurdle và các giải pháp Ensemble.

@@ -1,4 +1,7 @@
 Bản v5. Huấn Luyện Các Mô Hình Tổ Hợp (Random Forest & Gradient Boosting)
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là cài đặt hai phương pháp học kết hợp Ensemble Bagging và Ensemble Boosting để so sánh hiệu năng giảm phương sai và giảm độ lệch.
 
 Bước 1. Huấn luyện Random Forest Regressor (Ensemble Bagging)

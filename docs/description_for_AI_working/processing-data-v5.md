@@ -1,4 +1,7 @@
 Bản v5. Xây Dựng Pipeline Tiền Xử Lý Một Chiều (CustomDataPipeline)
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là đóng gói toàn bộ quy trình tiền xử lý thành pipeline một chiều tuân thủ nguyên tắc đóng băng thống kê, chỉ fit trên tập Train.
 
 Bước 1. Thiết lập bộ điền khuyết thiếu CustomSimpleImputer

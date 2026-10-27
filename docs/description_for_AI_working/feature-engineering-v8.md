@@ -1,4 +1,7 @@
 Bản v8. Ghép Nối Vector 89 Đặc Trưng & Lưu Cache Ma Trận
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là hoàn thiện việc ghép nối toàn bộ 16 biến số học và 73 biến danh mục, kiểm toán cấu trúc và lưu ma trận đệm vào đĩa.
 
 Bước 1. Tổng hợp danh mục 16 đặc trưng số học

@@ -1,4 +1,7 @@
 Bản v7. Kỹ Nghệ Biến Mùa Vụ, Ngày Lễ & Tuần Hoàn Lượng Giác
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là mô hình hóa các biến động theo chu kỳ lịch, tuần lễ hội và mùa cao điểm mua sắm bán lẻ.
 
 Bước 1. Kỹ nghệ biến chỉ báo mùa cao điểm mua sắm (is_peak_shopping_season)

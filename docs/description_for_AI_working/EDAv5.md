@@ -1,4 +1,7 @@
 Bản v5. Phân Tích Tính Chu Kỳ Mùa Vụ & Xu Hướng Bán Lẻ
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là khảo sát tác động của yếu tố thời gian, các tháng trong năm và mùa mua sắm cao điểm lên doanh số sản phẩm e-commerce Olist.
 
 Bước 1. Phân tích tổng doanh số theo các tháng trong năm

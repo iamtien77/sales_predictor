@@ -1,5 +1,7 @@
 # 🎯 Hệ Thống Mô Hình Đối Chứng Cơ Sở (Baselines From-Scratch)
 
+> **Snapshot hiện tại:** artifact ghi `2026-10-27 16:26:38`, chế độ `full`, có tuning, 655.066 dòng Train. Nguồn: [Test](../../results/metrics/model_comparison.csv), [Validation](../../results/metrics/validation_comparison.csv), [tuning](../../results/metrics/tuning_history.csv). Thời gian fit thuộc lần chạy này. Kết quả dùng snapshot `delivered` cuối kỳ, chưa bảo đảm khả dụng tại forecast origin.
+
 > **Vị trí trong dự án:** Hệ thống 4 mô hình cơ sở tham chiếu (Non-Machine Learning Baselines) tuân thủ nghiêm ngặt nguyên tắc học máy (Rule 10: *Always propose a baseline before complex models*).  
 > **Mã nguồn triển khai:** Các lớp [`ZeroRegressorFromScratch`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/baselines.py#L17), [`RevenueMeanRegressorFromScratch`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/baselines.py#L28), [`MeanRegressorFromScratch`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/baselines.py#L47) và [`PreviousWeekRegressorFromScratch`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/baselines.py#L65) trong [`src/models/baselines.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/baselines.py), được re-export qua Facade [`src/models/regressors.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/regressors.py).
 
@@ -119,5 +121,5 @@ Mục đích của việc thiết lập hệ thống 4 mô hình cơ sở (Basel
 ### 6.3. Khẳng định Giá trị Gia tăng của các Thuật toán Máy học
 Sự tồn tại của hệ thống 4 Baseline này làm nổi bật giá trị thực tế của các mô hình học máy được triển khai:
 - **Two-Stage Hurdle (Selected Artifact):** Đạt **RMSE 49,23 BRL** (giảm 3,23 BRL so với Revenue Mean 52,46 BRL), MSE **2.423,73**, và $R^2 = \mathbf{+0,1148}$ (kỷ lục toàn dự án).
-- **Tuned Decision Tree (Best Single Model):** Đạt **RMSE 50,41 BRL**, MAE **4,30 BRL**, $R^2 = \mathbf{+0,0719}$, cùng chi phí chuỗi cung ứng tối ưu nhất (**40,62 BRL/sản phẩm**).
+- **Tuned Decision Tree (Best Single Model):** Đạt **RMSE 50,41 BRL**, MAE **4,30 BRL**, $R^2 = \mathbf{+0,0719}$, cùng điểm phạt chi phí giả định thấp nhất (**40,62 BRL/sản phẩm**).
 - Khẳng định các mô hình máy học đã thực sự học được quy luật có ý nghĩa từ dữ liệu thay vì chỉ dự báo ngẫu nhiên quanh giá trị trung bình.

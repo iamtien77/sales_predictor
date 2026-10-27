@@ -1,4 +1,7 @@
 Bản v4. Dò Tìm Siêu Tham Số Cho Gradient Boosting
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là khảo sát số vòng lặp boosting và độ sâu cây con để tối ưu hóa quá trình học phần dư.
 
 Bước 1. Thiết lập không gian lưới tham số cho Gradient Boosting

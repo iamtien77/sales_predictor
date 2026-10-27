@@ -1,4 +1,7 @@
 Bản v4. Kỹ Nghệ Biến Sản Lượng & Vòng Đời Sản Phẩm (Units & Lifecycle)
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là định lượng khối lượng hàng hóa xuất kho và độ trưởng thành của sản phẩm trên sàn thương mại điện tử.
 
 Bước 1. Kỹ nghệ biến số lượng sản phẩm bán tuần trước (last_week_units)

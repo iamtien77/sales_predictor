@@ -1,4 +1,7 @@
 Bản v7. Triển Khai 3 Kịch Bản Kinh Doanh & Vận Hành Streamlit App
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là đưa mô hình vào ứng dụng thực tiễn thông qua việc mô phỏng 3 kịch bản kinh doanh và xây dựng giao diện tương tác trực quan.
 
 Bước 1. Triển khai Kịch bản 1: Ra mắt Sản phẩm Mới (New Product Launch)

@@ -1,4 +1,7 @@
 Bản v3. Tính Toán Chỉ Số Chuỗi Cung Ứng Bán Lẻ (WAPE)
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là bổ sung chỉ số Weighted Absolute Percentage Error (WAPE) chuẩn mực cho e-commerce, khắc phục nhược điểm chia cho 0 của MAPE.
 
 Bước 1. Phân tích sự sụp đổ của MAPE trên dữ liệu thưa

@@ -1,4 +1,7 @@
 Bản v2. Kỹ Nghệ Nhóm Biến Quán Tính Doanh Thu Trễ (Lag Features)
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là khai thác tín hiệu tự tương quan chuỗi thời gian thông qua các bước trễ lịch sử doanh số.
 
 Bước 1. Thiết lập biến doanh thu tuần liền trước (last_week_sales)

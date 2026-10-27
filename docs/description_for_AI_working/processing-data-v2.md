@@ -1,4 +1,7 @@
 Bản v2. Làm Sạch Nguồn Item Trước Aggregation
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là làm sạch chi tiết các dòng giao dịch item, loại trừ các trạng thái đơn hàng hủy bỏ mà không áp dụng cắt xén ngoại lai làm sai lệch doanh thu.
 
 Bước 1. Lọc bỏ các trạng thái đơn hàng không hợp lệ

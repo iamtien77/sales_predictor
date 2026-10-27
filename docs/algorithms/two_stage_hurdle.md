@@ -1,6 +1,8 @@
 # 🎯 Mô Hình Hai Giai Đoạn (Two-Stage Hurdle Regressor From-Scratch)
 
-> **Vị trí trong dự án:** Mô hình hồi quy chuyên biệt đặc trị bài toán dữ liệu thưa cực đoan (>90% tuần doanh thu bằng 0 BRL - Zero-Inflated Demand). Đạt danh hiệu **Mô hình chiến thắng toàn diện (Winner / Selected Artifact)** trên cả tập Validation (RMSE **59,22 BRL**) và Test (**RMSE 50,84 BRL**, $R^2 = \mathbf{+0,0559}$), được chọn làm artifact chính thức cho hệ thống sản xuất. (Trong thực nghiệm chuyên sâu tại Notebook 04 với cấu hình nhánh cây tinh chỉnh, mô hình đạt đến Test RMSE **49,23 BRL** và $R^2 = \mathbf{+0,1148}$).  
+> **Snapshot hiện tại:** artifact ghi `2026-10-27 16:26:38`, chế độ `full`, có tuning, 655.066 dòng Train. Nguồn: [Test](../../results/metrics/model_comparison.csv), [Validation](../../results/metrics/validation_comparison.csv), [tuning](../../results/metrics/tuning_history.csv). Thời gian fit thuộc lần chạy này. Kết quả dùng snapshot `delivered` cuối kỳ, chưa bảo đảm khả dụng tại forecast origin.
+
+> **Vai trò:** Được chọn bằng Validation RMSE **55,9393 BRL**; Test RMSE **49,2314 BRL**, R² **0,1148**. Artifact phục vụ demo học thuật; không thắng mọi metric.
 > **Mã nguồn triển khai:** Class [`TwoStageHurdleRegressorFromScratch`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/hurdle.py#L18) trong [`src/models/hurdle.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/hurdle.py), được re-export qua Facade [`src/models/regressors.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/regressors.py).  
 > **Kiểm thử đơn vị:** Tệp [`tests/test_hurdle_and_metrics.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/tests/test_hurdle_and_metrics.py).
 
@@ -153,7 +155,7 @@ Hệ thống đánh giá trên thang đo tiền tệ thực tế BRL với đầ
 | **MAE (BRL)** | 8,44 | 4,33 | 4,43 | 4,42 | 11,90 |
 | **WAPE** | 1,97 | 1,01 | 1,04 | 1,03 | 2,78 |
 | **Cost Per Item (BRL)**| 44,80 | 41,26 | 42,69 | 42,49 | 56,35 |
-| **Thời gian huấn luyện** | **38,32s** | 32,77s | 94,45s | 318,54s | 0,00s |
+| **Thời gian huấn luyện** | **15,08s** | 16,55s | 42,11s | 138,50s | 0,00s |
 
 ### 6.2. Phân tích Bản chất Kỹ thuật & Đánh đổi (Trade-off Analysis)
 
@@ -163,8 +165,8 @@ Hệ thống đánh giá trên thang đo tiền tệ thực tế BRL với đầ
    - Nguyên nhân: Nhờ tách rời việc ước lượng độ lớn doanh thu sang Giai đoạn 2, cây hồi quy không bị 90% số 0 kéo tụt xuống sát mức đáy, từ đó dự báo chính xác hơn độ lớn của các đơn hàng phát sinh.
 
 2. **Tốc độ huấn luyện tối ưu:**
-   - Cây phân loại Giai đoạn 1 huấn luyện trên toàn bộ 655.066 dòng mất ~37,91s. Cây hồi quy Giai đoạn 2 chỉ cần huấn luyện trên tập con dương (~55.000 dòng có đơn), hoàn thành siêu tốc trong **0,41 giây**. Tổng thời gian fit cả hai giai đoạn là **38,32 giây** (nhanh hơn nhiều so với Random Forest 94,45s và Gradient Boosting 318,54s).
+   - CSV ghi tổng thời gian fit **15,08 giây**, không tách hai giai đoạn. Random Forest: **42,11 giây**; Gradient Boosting: **138,50 giây**.
 
 3. **Đánh đổi giữa MAE và RMSE (The MAE vs. RMSE Trade-off):**
    - Chỉ số MAE của mô hình Hurdle (**8,44 BRL**) cao hơn Decision Tree (**4,33 BRL**) và Tuned DT (**4,30 BRL**).
-   - *Lý do kỹ thuật:* Trên tập dữ liệu có 90% số 0, một mô hình luôn đoán $\approx 0$ BRL sẽ có MAE cực nhỏ ($\approx 4,28$ BRL như Zero Baseline) nhưng lại hoàn toàn vô dụng trong việc bắt các đơn hàng lớn. Mô hình Hurdle chấp nhận dự báo kỳ vọng thực tế $\mathbb{E}[\text{sales}] > 0$ cho các sản phẩm có tiềm năng, điều này làm tăng nhẹ MAE ở các tuần thực tế bằng 0 nhưng lại giảm mạnh sai số bình phương lớn (MSE/RMSE) khi có đơn hàng thực tế nổ ra, đưa $R^2$ lên mức kỷ lục $+0,1148$.
+   - Hurdle có RMSE thấp hơn nhưng MAE cao hơn Zero Baseline. Đây là trade-off quan sát trên Test; chưa đo riêng khả năng phát hiện nhu cầu đột biến. Dự báo dương nghịch đảo từ log không mặc nhiên là kỳ vọng số học.

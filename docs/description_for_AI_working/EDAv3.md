@@ -1,4 +1,7 @@
 Bản v3. Phân Tích Thống Kê Biến Mục Tiêu Doanh Thu & Phép Biến Đổi Log
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là khảo sát các đặc tính phân phối của biến mục tiêu doanh thu tuần, phân tích độ lệch phải cực đoan và kiểm chứng tính hợp lệ của phép biến đổi log.
 
 Bước 1. Tính toán tổng doanh thu tuần cho từng sản phẩm

@@ -1,4 +1,7 @@
 Bản v2. Huấn Luyện Hệ Thống 4 Mô Hình Cơ Sở (Baselines)
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là huấn luyện và thiết lập mốc đối chứng tham chiếu tối thiểu cho toàn bộ hệ thống học máy.
 
 Bước 1. Huấn luyện Zero Baseline (ZeroRegressorFromScratch)

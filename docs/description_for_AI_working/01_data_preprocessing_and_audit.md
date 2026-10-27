@@ -1,5 +1,7 @@
 # 📋 Giai Đoạn 1: Tiền Xử Lý Dữ Liệu & Khởi Tạo Weekly Panel (Phase 1 Playbook)
 
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 > **Mục tiêu:** Xây dựng quy trình chuẩn mực chuyển đổi từ dữ liệu giao dịch thô Olist sang bảng chuỗi thời gian Sản phẩm – Tuần (Weekly Product-Week Panel ~1,2 triệu mẫu), thực hiện kiểm toán dữ liệu và phân chia Temporal Split 80/10/10 chống rò rỉ thông tin tương lai.  
 > **Hàm điều phối:** `step_1_load_and_explore()`, `step_2_clean_and_preprocess()`, `step_3_build_weekly_panel()`, `step_5_split_and_scale()` trong [`main.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/main.py).  
 > **Mã nguồn cốt lõi:** [`src/data/loader.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/data/loader.py), [`src/data/builder.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/data/builder.py), [`src/data/preprocessing.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/data/preprocessing.py).

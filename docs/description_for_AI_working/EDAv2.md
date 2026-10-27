@@ -1,4 +1,7 @@
 Bản v2. Chuẩn Hóa Thời Gian & Cấu Trúc Bảng Sản Phẩm – Tuần
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là chuyển đổi mốc thời gian giao dịch riêng lẻ sang tuần lịch thống nhất và thiết lập khung dữ liệu chuỗi thời gian Sản phẩm – Tuần (Weekly Panel).
 
 Bước 1. Chuyển đổi trường order_purchase_timestamp sang datetime64[ns]

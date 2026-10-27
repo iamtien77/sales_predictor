@@ -1,5 +1,7 @@
 # ⚙️ Giai Đoạn 2: Kỹ Nghệ Hệ Thống 89 Đặc Trưng & Kiểm Toán Chống Rò Rỉ (Phase 2 Playbook)
 
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 > **Mục tiêu:** Thiết kế hệ thống 89 đặc trưng dự báo toàn diện bao quát quán tính doanh thu, thống kê trượt, lịch sử đánh giá khách hàng, mùa vụ và danh mục sản phẩm; thực hiện kiểm toán nghiêm ngặt chống rò rỉ dữ liệu (Anti-Leakage Audit).  
 > **Hàm điều phối:** `WeeklySalesFeatureEngineer` tích hợp trong `CustomDataPipeline`, xuất đồ thị qua `step_4_run_eda()` trong [`main.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/main.py).  
 > **Mã nguồn cốt lõi:** [`src/data/feature_engineering.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/data/feature_engineering.py), [`src/evaluation/visualization.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/evaluation/visualization.py).

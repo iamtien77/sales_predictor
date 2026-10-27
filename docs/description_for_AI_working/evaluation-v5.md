@@ -1,4 +1,7 @@
 Bản v5. Phân Tích Phần Dư & Mổ Xẻ Top 20 Ca Lệch Nhất (Error Analysis)
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là mổ xẻ nguyên nhân kinh tế và thống kê của các trường hợp dự báo có sai lệch tuyệt đối lớn nhất trên tập Test.
 
 Bước 1. Trích xuất Top 20 trường hợp sai lệch lớn nhất

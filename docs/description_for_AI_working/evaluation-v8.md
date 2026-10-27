@@ -1,4 +1,7 @@
 Bản v8. Xây Dựng Mô Hình Hồi Quy Sản Phẩm Mới (Cold-Start Content-based Regressor From-Scratch)
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là giải quyết triệt để bài toán Cold-Start cho các sản phẩm mới ra mắt hoàn toàn chưa có lịch sử bán hàng trong panel tuần, bằng cách học mối quan hệ phi tuyến giữa các đặc trưng nội dung (Content-based features) với doanh số tuần mở bán đầu tiên (Launch Week Sales).
 
 Bước 1. Trích xuất tập dữ liệu tuần mở bán (Launch Week Dataset)

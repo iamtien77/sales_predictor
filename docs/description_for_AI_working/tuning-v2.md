@@ -1,4 +1,7 @@
 Bản v2. Dò Tìm Siêu Tham Số Cho Random Forest
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là quét không gian tham số của Random Forest để tìm cấu hình cân bằng giữa độ sâu cây và số lượng cây con.
 
 Bước 1. Thiết lập không gian lưới tham số

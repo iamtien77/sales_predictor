@@ -1,4 +1,7 @@
 Bản v3. Xây Dựng Bảng Chuỗi Thời Gian Sản Phẩm – Tuần
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là chuyển đổi dữ liệu giao dịch item thành bảng chuỗi thời gian Sản phẩm – Tuần (Weekly Product Panel) bảo toàn các tuần 0 BRL.
 
 Bước 1. Xác định mốc tuần lịch chuẩn cho từng giao dịch

@@ -1,5 +1,7 @@
 # 📊 Giai Đoạn 4: Nghiệm Thu Độc Lập, Phân Tích Sai Số & Triển Khai Kinh Doanh (Phase 4 Playbook)
 
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 > **Mục tiêu:** Thực hiện kiểm định khách quan trên 293.717 dòng Test theo thang đo tiền tệ thực tế BRL, mổ xẻ phần dư Top 20 ca dự báo lệch nhất, đóng gói artifact và triển khai ứng dụng Streamlit dự báo đa kịch bản.  
 > **Hàm điều phối:** `step_8_evaluate_and_compare()`, `step_9_error_analysis()`, `step_10_persistence_and_demo()` trong [`main.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/main.py).  
 > **Mã nguồn cốt lõi:** [`src/evaluation/metrics.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/evaluation/metrics.py), [`src/evaluation/error_analysis.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/evaluation/error_analysis.py), [`src/models/persistence.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/persistence.py), [`src/deployment/predictor.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/deployment/predictor.py), [`app.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/app.py).

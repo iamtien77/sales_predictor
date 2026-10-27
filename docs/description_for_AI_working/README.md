@@ -1,5 +1,7 @@
 # 🧭 Mục Lục Toàn Diện: Hướng Dẫn Kỹ Thuật Dự Án (Description for AI Working)
 
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Thư mục này chứa toàn bộ hệ thống các kịch bản mô tả kỹ thuật chi tiết theo từng phiên bản tiến hóa (`v1` đến `vn`), tái hiện đầy đủ tiến trình lặp (Iterative Progression) của dự án **Dự Báo Doanh Thu Sản Phẩm Theo Tuần (Weekly Product Sales Predictor)** tại [`main.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/main.py) và thư mục [`src/`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src).
 
 Mỗi tài liệu được chuẩn hóa thành các hành động kỹ thuật cụ thể theo cấu trúc: `Bước 1. ...`, `Bước 2. ...` quy định rõ đầu vào, logic xử lý thuật toán, kiểm soát lỗi biên, phòng chống rò rỉ dữ liệu chuỗi thời gian (Anti-Leakage) và số liệu kiểm chứng thực nghiệm.

@@ -1,5 +1,7 @@
 # 🤖 Giai Đoạn 3: Huấn Luyện 5 Thuật Toán From-Scratch & Tối Ưu Siêu Tham Số (Phase 3 Playbook)
 
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 > **Mục tiêu:** Xây dựng và huấn luyện 100% From-Scratch thuần NumPy cho 5 thuật toán hồi quy và 4 mô hình cơ sở đối chuẩn; tối ưu siêu tham số bằng GridSearchCV trên tập Validation 10% độc lập theo thời gian.  
 > **Hàm điều phối:** `step_6_train_models()`, `step_7_hyperparameter_tuning()` trong [`main.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/main.py).  
 > **Mã nguồn cốt lõi:** [`src/models/regressors.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/regressors.py), [`src/models/tree.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/tree.py), [`src/models/ensemble.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/ensemble.py), [`src/models/linear.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/linear.py), [`src/models/hurdle.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/hurdle.py), [`src/models/tuning.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/tuning.py).

@@ -1,4 +1,7 @@
 Bản v1. Quy Trình Nghiệm Thu Độc Lập Trên Test Set & Nghịch Đảo BRL
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là thiết lập giao thức kiểm định khách quan trên 293.717 dòng Test Set theo thang đo tiền tệ thực tế BRL.
 
 Bước 1. Tách biệt hoàn toàn tập kiểm tra độc lập (Test Set)

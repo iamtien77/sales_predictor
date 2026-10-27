@@ -1,4 +1,7 @@
 Bản v3. Dò Tìm Siêu Tham Số Cho Decision Tree
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là tinh chỉnh độ sâu và ràng buộc lá của Decision Tree để tìm ra mô hình có năng lực phân nhánh sắc bén nhất.
 
 Bước 1. Thiết lập không gian lưới tham số cho Decision Tree

@@ -1,4 +1,7 @@
 Bản v4. Phân Chia Chuỗi Thời Gian Theo Tuần Lịch (Temporal Split 80/10/10)
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là phân chia tập dữ liệu nghiêm ngặt theo dòng thời gian tuần lịch, loại bỏ hoàn toàn nguy cơ rò rỉ dữ liệu tương lai vào quá khứ.
 
 Bước 1. Thu thập danh sách các tuần lịch duy nhất

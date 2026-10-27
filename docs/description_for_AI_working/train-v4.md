@@ -1,4 +1,7 @@
 Bản v4. Huấn Luyện Cây Quyết Định Hồi Quy (Decision Tree Regressor)
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là xây dựng cây hồi quy đệ quy nhị phân thuần NumPy theo tiêu chuẩn giảm phương sai, tối ưu hóa tốc độ bằng 16 phân vị ứng viên.
 
 Bước 1. Xây dựng cấu trúc nút cây DecisionTreeNode

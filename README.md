@@ -136,24 +136,24 @@ Các phép lag và rolling sử dụng các tuần trước tuần dự báo; m�
 <!-- GENERATED RESULTS: python -m src.evaluation.reporting -->
 Các bảng dưới được sinh trực tiếp từ CSV trong `results/metrics` và artifact triển khai.
 Chạy `.venv/Scripts/python.exe -m src.evaluation.reporting` để đồng bộ sau thực nghiệm.
-Mô hình tuần được chọn bằng Validation: **Two-Stage Hurdle**, Validation RMSE **59.2188 BRL**.
-Chế độ huấn luyện tuần: **Không được lưu trong lần chạy cũ; không suy đoán full/fast**. Thời điểm huấn luyện tuần được ghi trong metadata: `2026-10-20 22:25:45`.
+Mô hình tuần được chọn bằng Validation: **Two-Stage Hurdle**, Validation RMSE **55.9393 BRL**.
+Chế độ huấn luyện tuần: **full**. Thời điểm huấn luyện tuần được ghi trong metadata: `2026-10-27 16:26:38`.
 Đây là snapshot của lần chạy đã lưu, không trộn số liệu từ lần chạy khác.
 
 ### 4.1. Dự báo sản phẩm–tuần (Test, BRL)
 
 | Model | MSE | MAE | RMSE | R2 | WAPE | Cost_Per_Item_BRL | Fit Time (s) | Target_Scale |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Two-Stage Hurdle | 2585.0102 | 8.6032 | 50.8430 | 0.0559 | 2.0105 | 45.4800 | 0.3600 | BRL |
-| Decision Tree | 2674.6362 | 4.4362 | 51.7169 | 0.0232 | 1.0367 | 41.6627 | 0.7000 | BRL |
-| Tuned Model | 2697.7820 | 4.4039 | 51.9402 | 0.0148 | 1.0291 | 42.4060 | 0.0000 | BRL |
-| Random Forest | 2725.0833 | 4.4273 | 52.2023 | 0.0048 | 1.0346 | 42.6747 | 0.7700 | BRL |
-| Gradient Boosting | 2733.2544 | 4.4465 | 52.2805 | 0.0018 | 1.0391 | 42.8263 | 2.0400 | BRL |
+| Two-Stage Hurdle | 2423.7333 | 8.4426 | 49.2314 | 0.1148 | 1.9730 | 44.7952 | 15.0800 | BRL |
+| Tuned Model | 2541.2236 | 4.2989 | 50.4106 | 0.0719 | 1.0046 | 40.6158 | 0.0000 | BRL |
+| Decision Tree | 2615.3331 | 4.3274 | 51.1403 | 0.0449 | 1.0113 | 41.2640 | 16.5500 | BRL |
+| Gradient Boosting | 2708.2243 | 4.4176 | 52.0406 | 0.0109 | 1.0323 | 42.4902 | 138.5000 | BRL |
+| Random Forest | 2725.3346 | 4.4322 | 52.2047 | 0.0047 | 1.0357 | 42.6916 | 42.1100 | BRL |
 | Revenue Mean Baseline | 2752.2779 | 11.8955 | 52.4622 | -0.0052 | 2.7798 | 56.3489 | 0.0000 | BRL |
 | Mean Baseline | 2754.5202 | 4.5026 | 52.4835 | -0.0060 | 1.0522 | 43.1895 | 0.0000 | BRL |
 | Zero Baseline | 2756.4820 | 4.2792 | 52.5022 | -0.0067 | 1.0000 | 42.7919 | 0.0000 | BRL |
 | Previous Week Baseline | 5683.5250 | 9.0765 | 75.3892 | -1.0757 | 2.1211 | 42.4533 | 0.0000 | BRL |
-| Linear Regression | 29169475.0415 | 76.8349 | 5400.8772 | -10651.9064 | 17.9555 | 185.2979 | 0.0500 | BRL |
+| Linear Regression | 30378515.8542 | 44.3768 | 5511.6709 | -11093.4570 | 10.3704 | 120.7011 | 0.6200 | BRL |
 
 RMSE và MAE phản ánh các mục tiêu khác nhau; không suy ra lợi ích tồn kho chỉ từ R².
 Chi phí là điểm phạt giả định trên sai lệch doanh thu, không phải chi phí vận hành được đo thực tế.
@@ -177,7 +177,7 @@ So sánh cả baseline danh mục và baseline một sản phẩm (`sales = firs
 Không chọn mô hình bằng Test: cây với tham số cố định là ứng viên thực nghiệm được lưu,
 không được gọi là tốt nhất nếu baseline thắng. Tỷ lệ Test chỉ bán một đơn vị: **85.47%**.
 
-Với sản phẩm chỉ bán một đơn vị trong cửa sổ bảy ngày, target bằng đúng giá giao dịch đầu đã biết, nên baseline `sales = first_price` dự báo chính xác. Tỷ lệ lớn của nhóm này giải thích vì sao baseline là đối chứng mạnh; bảng trên mới là bằng chứng nó thắng cây về MAE và RMSE trong lần chạy đã lưu, không phải kết luận cho mọi tập dữ liệu. Cây gom nhiều sản phẩm vào mỗi lá và học trên `log1p(sales)`, nên không bắt buộc giữ quan hệ `sales = first_price`; phép nghịch đảo log cũng không tối ưu trực tiếp MSE trên BRL. Đây là các cơ chế có thể góp phần gây sai số, chưa phải kết luận nhân quả từ một thí nghiệm ablation.
+Với sản phẩm chỉ bán một đơn vị trong cửa sổ bảy ngày, target bằng đúng giá giao dịch đầu đã biết, nên baseline `sales = first_price` dự báo chính xác. Tỷ lệ lớn của nhóm này giải thích vì sao baseline là đối chứng mạnh; cần đọc MAE và RMSE trong bảng trên để xác định mô hình nào thắng trong lần chạy được báo cáo, không suy rộng cho mọi tập dữ liệu. Cây gom nhiều sản phẩm vào mỗi lá và học trên `log1p(sales)`, nên không bắt buộc giữ quan hệ `sales = first_price`; phép nghịch đảo log cũng không tối ưu trực tiếp MSE trên BRL. Đây là các cơ chế có thể góp phần gây sai số, chưa phải kết luận nhân quả từ một thí nghiệm ablation.
 
 Giới hạn: mốc bắt đầu là lần bán đầu, không phải ngày niêm yết; target bao gồm giao dịch đầu đã biết.
 Không có sản phẩm chưa bán; metadata sản phẩm và trạng thái delivered là snapshot cuối,

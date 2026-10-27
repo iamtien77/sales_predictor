@@ -1,4 +1,7 @@
 Bản v9. Xây Dựng Động Cơ Mô Phỏng Tiếp Thị Kinh Tế Lượng (Marketing Uplift & ROAS Engine)
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là nâng cấp kịch bản marketing từ mức hợp đồng dữ liệu tĩnh (trả về NaN do thiếu dữ liệu chiến dịch trong log Olist) thành động cơ mô phỏng tiếp thị kinh tế lượng chuẩn mực, ứng dụng hàm bão hòa phi tuyến và định luật lợi biên giảm dần để lượng hóa doanh thu tăng thêm và tỷ suất sinh lời ROAS.
 
 Bước 1. Cơ sở toán học kinh tế lượng (Advertising Elasticity of Demand - AED)

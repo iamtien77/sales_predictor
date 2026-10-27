@@ -1,4 +1,7 @@
 Bản v1. Thiết Kế Kiến Trúc Học Máy From-Scratch Thuần NumPy
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là thiết lập lớp cơ sở BaseRegressorFromScratch và chuẩn hóa giao diện hàm mất mát hồi quy trong không gian log.
 
 Bước 1. Thiết kế lớp cơ sở BaseRegressorFromScratch

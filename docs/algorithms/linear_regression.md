@@ -1,5 +1,7 @@
 # 📉 Hồi Quy Tuyến Tính (Linear Regression From-Scratch)
 
+> **Snapshot hiện tại:** artifact ghi `2026-10-27 16:26:38`, chế độ `full`, có tuning, 655.066 dòng Train. Nguồn: [Test](../../results/metrics/model_comparison.csv), [Validation](../../results/metrics/validation_comparison.csv), [tuning](../../results/metrics/tuning_history.csv). Thời gian fit thuộc lần chạy này. Kết quả dùng snapshot `delivered` cuối kỳ, chưa bảo đảm khả dụng tại forecast origin.
+
 > **Vị trí trong dự án:** Mô hình hồi quy tuyến tính tham chiếu cơ sở (Parametric Baseline), dùng để đối chiếu năng lực giải thích quan hệ tuyến tính trước khi áp dụng các mô hình phi tuyến phức tạp.  
 > **Mã nguồn triển khai:** Class [`LinearRegressionFromScratch`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/linear.py#L17) trong [`src/models/linear.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/linear.py), được re-export qua Facade [`src/models/regressors.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/regressors.py).  
 > **Kiểm thử đơn vị:** Tệp [`tests/test_hurdle_and_metrics.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/tests/test_hurdle_and_metrics.py).
@@ -55,7 +57,7 @@ $$
 
 ---
 
-Hai solver dùng cùng quy ước `alpha_ridge`, không phạt intercept. Khi Gradient Descent hội tụ, nghiệm phải khớp Normal Equation trong sai số số học. `cost_history_` chỉ lưu MSE, không gồm phần phạt Ridge. Việc sửa hệ số gradient không cập nhật artifact hay kết quả thực nghiệm đã lưu; cần huấn luyện lại các model dùng Gradient Descent nếu muốn áp dụng công thức mới.
+Hai solver dùng cùng quy ước `alpha_ridge`, không phạt intercept. Khi Gradient Descent hội tụ, nghiệm phải khớp Normal Equation trong sai số số học. `cost_history_` chỉ lưu MSE, không gồm phần phạt Ridge. Lần chạy full ngày 27/10/2026 đã cập nhật artifact và metrics. CLI dùng Normal Equation; kết quả này không đo tác động của bản sửa Gradient Descent.
 
 ## 2. Input / Output (Đầu vào & Đầu ra)
 
@@ -113,8 +115,8 @@ Hai solver dùng cùng quy ước `alpha_ridge`, không phạt intercept. Khi Gr
 
 | Cấu hình mô hình | MSE ($\text{BRL}^2$) | MAE (BRL) | RMSE (BRL) | $R^2$ Score | WAPE | Supply Chain Cost (BRL) | Fit Time (s) |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Linear Regression (Gốc - Unbounded OLS)** | $1,69 \times 10^{16}$ | $246.299,23$ | $1,30 \times 10^8$ | $-6,17 \times 10^{12}$ | — | — | 0,53s |
-| **Linear Regression (Adaptive Clamping)** | **$3,04 \times 10^7$** | **44,38** | **5.511,67** | **$-11.093,46$** | **10,37** | **120,70** | **1,55s** |
+| **Linear Regression (Unbounded OLS — ghi chú lịch sử)** | $1,69 \times 10^{16}$ | $246.299,23$ | $1,30 \times 10^8$ | $-6,17 \times 10^{12}$ | — | — | 0,53s |
+| **Linear Regression (Adaptive Clamping)** | **$3,04 \times 10^7$** | **44,38** | **5.511,67** | **$-11.093,46$** | **10,37** | **120,70** | **0,62s** |
 
 ### 6.2. Phân tích Bản chất Toán học & Nguyên nhân Thất bại ban đầu (Failure Mode)
 Trong thử nghiệm ban đầu khi chưa có kẹp biên, Linear Regression bị hiện tượng **nổ số học (*numerical explosion*) khi suy luận ngược về thang tiền tệ BRL**, khiến RMSE lên tới 130 triệu BRL:
@@ -145,7 +147,7 @@ Trong thử nghiệm ban đầu khi chưa có kẹp biên, Linear Regression b�
   \hat{y}_{\text{safe}} = \text{clip}\left(\hat{y}, y_{\min} - 0.5 \cdot \text{span}, y_{\max} + 0.5 \cdot \text{span}\right)
   $$
 
-- **Kết quả cải thiện:** Sai số RMSE giảm từ **130 triệu BRL** xuống **5.511,67 BRL**, loại bỏ hoàn toàn nguy cơ sụp đổ hệ thống (Overflow / NaN) do lỗi số học máy tính.
+- **Kết quả hiện tại:** RMSE **5.511,67 BRL**, vẫn lớn. Số 130 triệu BRL thuộc ghi chú lịch sử, chưa có đối chứng cùng lần chạy để quy chênh lệch cho clamping.
 
 ### 6.4. Ý nghĩa Học thuật & Kết luận
 - **Khẳng định tính tất yếu của việc từ bỏ các mô hình tham số tuyến tính** và chứng minh sự đúng đắn khi chuyển dịch sang các mô hình phi tuyến tính gốc cây (Two-Stage Hurdle, Decision Tree, Random Forest, Gradient Boosting).

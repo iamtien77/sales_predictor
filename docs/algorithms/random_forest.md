@@ -1,5 +1,7 @@
 # 🌲 Rừng Ngẫu Nhiên Hồi Quy (Random Forest Regressor From-Scratch)
 
+> **Snapshot hiện tại:** artifact ghi `2026-10-27 16:26:38`, chế độ `full`, có tuning, 655.066 dòng Train. Nguồn: [Test](../../results/metrics/model_comparison.csv), [Validation](../../results/metrics/validation_comparison.csv), [tuning](../../results/metrics/tuning_history.csv). Thời gian fit thuộc lần chạy này. Kết quả dùng snapshot `delivered` cuối kỳ, chưa bảo đảm khả dụng tại forecast origin.
+
 > **Vị trí trong dự án:** Phương pháp học kết hợp (Ensemble Bagging) đa mô hình cây quyết định nhằm giảm phương sai dự báo và tăng cường tính ổn định.  
 > **Mã nguồn triển khai:** Class [`RandomForestRegressorFromScratch`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/ensemble.py#L15) trong [`src/models/ensemble.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/ensemble.py), được re-export qua Facade [`src/models/regressors.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/regressors.py).  
 > **Module tinh chỉnh:** Hàm [`tune_random_forest`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/tuning.py#L169) trong [`src/models/tuning.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/tuning.py).
@@ -127,7 +129,7 @@ Cấu hình mặc định tham chiếu của Random Forest (`n_estimators=30, ma
 
 | Mô hình | MSE ($\text{BRL}^2$) | MAE (BRL) | RMSE (BRL) | $R^2$ Score | WAPE | Supply Chain Cost (BRL) | Fit Time (s) | Xếp hạng toàn hệ thống |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Random Forest Regressor** | **2.725,33** | **4,43** | **52,20** | **+0,0047** | **1,04** | **42,69** | **94,45s** | **Hạng 5 / 10** |
+| **Random Forest Regressor** | **2.725,33** | **4,43** | **52,20** | **+0,0047** | **1,04** | **42,69** | **42,11s** | **Hạng 5 / 10** |
 
 Đối chiếu với các mô hình và mốc cơ sở:
 - **Đánh bại toàn bộ 4 Baselines:** Tốt hơn Revenue Mean Baseline (RMSE 52,46 BRL), Log Mean Baseline (RMSE 52,48 BRL), Zero Baseline (RMSE 52,50 BRL) và Previous Week Baseline (RMSE 75,39 BRL).

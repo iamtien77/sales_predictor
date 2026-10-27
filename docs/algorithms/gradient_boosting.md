@@ -1,5 +1,7 @@
 # ⚡ Tăng Cường Độ Dốc Hồi Quy (Gradient Boosting Regressor From-Scratch)
 
+> **Snapshot hiện tại:** artifact ghi `2026-10-27 16:26:38`, chế độ `full`, có tuning, 655.066 dòng Train. Nguồn: [Test](../../results/metrics/model_comparison.csv), [Validation](../../results/metrics/validation_comparison.csv), [tuning](../../results/metrics/tuning_history.csv). Thời gian fit thuộc lần chạy này. Kết quả dùng snapshot `delivered` cuối kỳ, chưa bảo đảm khả dụng tại forecast origin.
+
 > **Vị trí trong dự án:** Phương pháp học kết hợp tuần tự (Ensemble Boosting) tiên tiến, huấn luyện các cây quyết định nông trên phần dư âm để tối ưu hóa hàm mất mát bình phương.  
 > **Mã nguồn triển khai:** Class [`GradientBoostingRegressorFromScratch`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/ensemble.py#L98) trong [`src/models/ensemble.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/ensemble.py), được re-export qua Facade [`src/models/regressors.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/regressors.py).  
 > **Module tinh chỉnh:** Hàm [`tune_gradient_boosting`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/tuning.py#L197) trong [`src/models/tuning.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/tuning.py).
@@ -129,14 +131,14 @@ Mô hình Gradient Boosting được khảo sát 4 cấu hình lưới trên t�
 | GB 3 | 30 | 2 | 0.1 | 62,4007 |
 | **GB 4 (Tuned GB)** | **30** | **3** | **0.1** | **61,2637** |
 
-Cấu hình tốt nhất của Gradient Boosting trên Validation đạt RMSE **61,2637 BRL** (với `n_estimators=30, max_depth=3, learning_rate=0.1`), vượt qua Random Forest (61,9221 BRL) và bản Decision Tree mặc định (61,1664 BRL).
+Cấu hình tốt nhất của Gradient Boosting trên Validation đạt RMSE **61,2637 BRL** (với `n_estimators=30, max_depth=3, learning_rate=0.1`), thấp hơn Random Forest (61,9221 BRL) nhưng cao hơn Decision Tree mặc định (61,1664 BRL).
 
 ### 6.2. Kết quả Đánh giá Độc lập trên Tập Kiểm thử Test (293.717 dòng)
 Cấu hình mặc định tham chiếu (`n_estimators=30, learning_rate=0.05, max_depth=3, min_samples_split=10, min_samples_leaf=5`) đạt kết quả:
 
 | Mô hình | MSE ($\text{BRL}^2$) | MAE (BRL) | RMSE (BRL) | $R^2$ Score | WAPE | Supply Chain Cost (BRL) | Fit Time (s) | Xếp hạng toàn hệ thống |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Gradient Boosting Regressor** | **2.708,22** | **4,42** | **52,04** | **+0,0109** | **1,03** | **42,49** | **318,54s** | **Hạng 4 / 10** |
+| **Gradient Boosting Regressor** | **2.708,22** | **4,42** | **52,04** | **+0,0109** | **1,03** | **42,49** | **138,50s** | **Hạng 4 / 10** |
 
 So sánh với các mô hình khác:
 - **Đánh bại Random Forest:** RMSE 52,04 BRL so với 52,20 BRL; $R^2 = +0,0109$ so với $+0,0047$.

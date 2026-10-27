@@ -1,4 +1,7 @@
 Bản v5. Kỹ Nghệ Biến Phản Hồi Khách Hàng Chống Rò Rỉ (Anti-Leakage Reviews)
+
+> **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
+
 Mục tiêu của bản này là đo lường uy tín chất lượng sản phẩm qua đánh giá của khách hàng mà không làm lộ dữ liệu tương lai vào quá khứ.
 
 Bước 1. Phân tích cơ chế phát sinh đánh giá trên Olist
