@@ -1,21 +1,19 @@
 # 🌲 Rừng Ngẫu Nhiên Hồi Quy (Random Forest Regressor From-Scratch)
 
-> **Snapshot hiện tại:** artifact ghi `2026-10-27 16:26:38`, chế độ `full`, có tuning, 655.066 dòng Train. Nguồn: [Test](../../results/metrics/model_comparison.csv), [Validation](../../results/metrics/validation_comparison.csv), [tuning](../../results/metrics/tuning_history.csv). Thời gian fit thuộc lần chạy này. Kết quả dùng snapshot `delivered` cuối kỳ, chưa bảo đảm khả dụng tại forecast origin.
-
-> **Vị trí trong dự án:** Phương pháp học kết hợp (Ensemble Bagging) đa mô hình cây quyết định nhằm giảm phương sai dự báo và tăng cường tính ổn định.  
-> **Mã nguồn triển khai:** Class [`RandomForestRegressorFromScratch`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/ensemble.py#L15) trong [`src/models/ensemble.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/ensemble.py), được re-export qua Facade [`src/models/regressors.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/regressors.py).  
-> **Module tinh chỉnh:** Hàm [`tune_random_forest`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/tuning.py#L169) trong [`src/models/tuning.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/tuning.py).
+> **Vị trí trong dự án:** Phương pháp học kết hợp (Ensemble Bagging) đa mô hình cây quyết định nhằm giảm phương sai dự báo và tăng cường tính ổn định.
+> **Mã nguồn triển khai:** Class [`RandomForestRegressorFromScratch`](../../src/models/ensemble.py) trong [`src/models/ensemble.py`](../../src/models/ensemble.py), được re-export qua Facade [`src/models/regressors.py`](../../src/models/regressors.py).
+> **Module tinh chỉnh:** Hàm [`tune_random_forest`](../../src/models/tuning.py) trong [`src/models/tuning.py`](../../src/models/tuning.py).
 
 ---
 
 ## 1. Purpose (Mục đích & Động lực lựa chọn)
 
 ### 1.1. Mục đích bài toán
-Một cây quyết định đơn lẻ (Decision Tree) dù có khả năng nắm bắt quan hệ phi tuyến rất tốt nhưng thường có phương sai cao (High Variance) và nhạy cảm với các biến động ngẫu nhiên trong dữ liệu mẫu. 
+Một cây quyết định đơn lẻ (Decision Tree) dù có khả năng nắm bắt quan hệ phi tuyến rất tốt nhưng thường có phương sai cao (High Variance) và nhạy cảm với các biến động ngẫu nhiên trong dữ liệu mẫu.
 
 Mục đích của thuật toán **Random Forest Regressor** trong dự án:
 - Ứng dụng kỹ thuật **Ensemble Bagging (Bootstrap Aggregating)** kết hợp lấy mẫu thuộc tính ngẫu nhiên (Feature Subsampling) để xây dựng một tập hợp gồm $B$ cây hồi quy độc lập.
-- Làm giảm mạnh phương sai của toàn hệ thống thông qua việc lấy trung bình cộng kết quả của các cây thành phần, duy trì độ lệch (Bias) thấp và ngăn chặn hiện tượng quá khớp (Overfitting).
+- Hướng tới giảm variance bằng trung bình dự báo các cây; hiệu quả phụ thuộc tương quan giữa cây, không bảo đảm bias thấp hoặc loại bỏ overfitting.
 - Tăng tính vững chắc (Robustness) khi dự báo doanh thu cho hàng chục nghìn mã sản phẩm có độ phân tán cao.
 
 ### 1.2. Cơ sở toán học & Nguyên lý Ensemble Bagging
@@ -29,6 +27,8 @@ P = 1 - \left(1 - \frac{1}{N}\right)^N \approx 1 - \frac{1}{e} \approx 63,2\%
 $$
 
 Khoảng $36,8\%$ số mẫu còn lại không được chọn tạo thành tập ngoài mẫu (Out-Of-Bag - OOB).
+
+Đây là tính chất lý thuyết khi N lớn; implementation không tính OOB score. Bootstrap theo dòng không loại phụ thuộc giữa các tuần/sản phẩm và không thay thế temporal evaluation. Với `bootstrap=False`, mỗi cây dùng toàn Train. Các cây fit riêng nhưng dự báo vẫn tương quan; bagging không bảo đảm loại bỏ overfitting hoặc giữ bias thấp.
 
 #### B. Phân nhánh ngẫu nhiên đặc trưng (Feature Subsampling)
 Tại mỗi nút phân nhánh của từng cây con, thay vì tìm kiếm trên toàn bộ $d = 89$ đặc trưng, thuật toán chỉ chọn ngẫu nhiên một tập con gồm:
@@ -45,6 +45,8 @@ $$
 
 Khi $\rho \to 0$ (các cây càng ít tương quan), phương sai toàn hệ thống càng giảm mạnh khi $B$ tăng lên.
 
+Công thức trên giả định variance các cây bằng nhau và correlation mọi cặp bằng nhau. Mức giảm correlation do feature subsampling chưa được đo trong snapshot.
+
 #### C. Dự đoán trung bình cộng
 Kết quả dự báo cuối cùng trong không gian log là trung bình cộng của $B$ cây con:
 
@@ -57,6 +59,8 @@ $$
 ## 2. Input / Output (Đầu vào & Đầu ra)
 
 ### 2.1. Định dạng dữ liệu đầu vào (Input)
+API nhận sparse matrix nhưng densify thành `float64`; số 89 thuộc snapshot. Caller phải bảo đảm Train không rỗng, dữ liệu hữu hạn, X/y cùng số dòng và đúng thứ tự feature; lớp chưa kiểm tra đầy đủ. Cần dự trù RAM cả bản sao bootstrap và ma trận prediction `(B, N)`.
+
 - **Ma trận đặc trưng $X$:** Mảng dense NumPy 2D kích thước $(N, 89)$ biểu diễn 16 đặc trưng số học đã chuẩn hóa và 73 danh mục sản phẩm đã mã hóa One-Hot.
 - **Vector nhãn mục tiêu $y$:** Vector NumPy 1D kích thước $(N,)$ trong không gian log tự nhiên: $y = \log(1 + \text{sales})$.
 
@@ -77,7 +81,7 @@ $$
   - Tập Kiểm định (Validation Set): **249.399 dòng** sản phẩm–tuần.
   - Tập Kiểm thử Độc lập (Test Set): **293.717 dòng** sản phẩm–tuần.
 - **Bảo toàn tuần doanh thu bằng 0:** Giữ nguyên các tuần `sales = 0.0` BRL để phản ánh đúng mật độ nhu cầu thưa.
-- **Tuân thủ hợp đồng thời gian:** Toàn bộ 89 đặc trưng đầu vào (biến trễ, thống kê trượt, giá tuần gần nhất, lịch sử đánh giá) đều được xác định trước 00:00 thứ Hai của tuần đích.
+- **Hợp đồng thời gian:** Lag/rolling dùng tuần quá khứ và preprocessing fit Train. Trạng thái `delivered` cuối kỳ và metadata snapshot chưa được chứng minh khả dụng tại origin; temporal split không tự khắc phục giới hạn này. 80/10/10 là tỷ lệ số tuần, không phải số dòng.
 
 ---
 
@@ -95,11 +99,15 @@ $$
 
 ## 5. Status (Trạng thái triển khai & Tối ưu kỹ thuật)
 
+Implementation fit các cây tuần tự. Seed cố định cho phép tái lập khi giữ dữ liệu, thứ tự dòng và môi trường; seed riêng không làm dự báo độc lập thống kê. Cần `n_estimators >= 1`; constructor chưa kiểm tra đầy đủ tham số. `predict` trước fit gây `RuntimeError`. Điều kiện dừng và ngưỡng chia kế thừa [Decision Tree](decision_tree.md).
+
+Importance thực tế lấy trung bình importance đã chuẩn hóa của các cây rồi chuẩn hóa lại tổng nếu dương; toàn cây không split thì vector 0. Công thức trung bình bên dưới là bước trung gian khi có cây importance bằng 0. Importance không phải tác động nhân quả.
+
 - **Trạng thái:** Hoàn thiện 100% From-Scratch thuần NumPy, không sử dụng `scikit-learn`.
 - **Đóng gói hướng đối tượng mô-đun:** Tái sử dụng lớp `DecisionTreeRegressorFromScratch` làm cây thành phần.
 - **Quản lý trạng thái ngẫu nhiên độc lập (`RandomState`):** Mỗi cây con được gán một seed ngẫu nhiên độc lập sinh từ `rng.randint()`, đảm bảo tính tái lập (Reproducibility) và đa dạng hóa quá trình lấy mẫu.
 - **Trích xuất Feature Importances tổng hợp:**
-  
+
   $$
   \text{Importance}(j) = \frac{1}{B} \sum_{b=1}^{B} \text{Importance}_b(j)
   $$
@@ -109,6 +117,8 @@ $$
 ## 6. Results (Kết quả thực nghiệm định lượng)
 
 ### 6.1. Quá trình Tinh chỉnh Siêu tham số (Grid Search trên Validation)
+Grid dùng một temporal holdout, không phải nhiều fold CV. Bảng Test mục 6.2 thuộc default RF, không phải tuned RF. Trung bình prediction log rồi `expm1` khác trung bình prediction BRL của các cây và không mặc nhiên là kỳ vọng số học.
+
 Mô hình Random Forest được khảo sát 8 cấu hình trên tập Validation độc lập (249.399 dòng):
 
 | Cấu hình | `n_estimators` | `max_depth` | `min_samples_split` | Validation RMSE (BRL) |
@@ -136,7 +146,8 @@ Cấu hình mặc định tham chiếu của Random Forest (`n_estimators=30, ma
 - **Đứng sau các cấu trúc cây khác:** Kém hơn Two-Stage Hurdle (RMSE 49,23 BRL, $R^2 = +0,1148$), Tuned Decision Tree (RMSE 50,41 BRL, $R^2 = +0,0719$), Decision Tree Default (RMSE 51,14 BRL) và Gradient Boosting (RMSE 52,04 BRL).
 
 ### 6.3. Nhận xét kỹ thuật & Phân tích nguyên nhân
-1. **Khả năng khái quát hóa dương ($R^2 > 0$):** Random Forest đạt $R^2 = +0,0047$, chứng minh năng lực dự báo thực sự và đánh bại toàn bộ các mốc cơ sở.
+1. **Kết quả trên snapshot:** Random Forest có R² = 0,0047 và RMSE thấp hơn bốn baseline; chênh lệch với Zero nhỏ và chưa có khoảng tin cậy. MAE 4,43 BRL vẫn cao hơn Zero 4,28 BRL. R² dùng trung bình Test làm tham chiếu, không chứng minh lợi ích kinh doanh ổn định.
 2. **Tại sao Random Forest lại có sai số cao hơn Decision Tree trên tập dữ liệu này?**
-   - **Tác động của Feature Subsampling ($k = \sqrt{89} \approx 9$):** Trong bài toán dự báo doanh thu tuần, tín hiệu thông tin tập trung rất mạnh vào một số ít biến then chốt (như `last_week_sales`, `price`, `sales_mean_4_weeks`). Khi giới hạn ngẫu nhiên 9 thuộc tính ở mỗi nút, nhiều nút phân nhánh không tiếp cận được các biến quan trọng này, dẫn đến việc các cây con phân nhánh theo các biến thứ yếu ít tính dự báo.
-   - **Bản chất dữ liệu zero-sales chiếm trên 90%:** Việc lấy trung bình cộng dự báo giữa các cây con vô tình làm "mịn" (smoothing) các giá trị dự báo, kéo các dự báo doanh thu dương về gần mức trung bình nhỏ, làm giảm khả năng nhận diện các đỉnh doanh thu thực tế so với cây quyết định đơn lẻ có độ sâu phù hợp.
+   - **Giả thuyết feature subsampling:** Chọn 9 feature có thể bỏ qua biến hữu ích tại một số nút. Cần ablation `max_features` với các tham số còn lại cố định để kiểm chứng.
+   - **Giả thuyết smoothing:** Trung bình dự báo log có thể giảm đỉnh prediction; chưa có đối chứng tách tác động bootstrap, depth và log-transform để quy chắc chắn nguyên nhân.
+3. **Phạm vi metrics:** WAPE là tỷ lệ (1 tương ứng 100%). Supply Chain Cost là điểm phạt giả định mỗi mẫu sản phẩm–tuần, không phải chi phí tồn kho thực đo. Xem [kiểm chứng thực nghiệm](experimental_validation.md) để biết các đối chứng đã có.

@@ -1,9 +1,7 @@
 # 🎯 Hệ Thống Mô Hình Đối Chứng Cơ Sở (Baselines From-Scratch)
 
-> **Snapshot hiện tại:** artifact ghi `2026-10-27 16:26:38`, chế độ `full`, có tuning, 655.066 dòng Train. Nguồn: [Test](../../results/metrics/model_comparison.csv), [Validation](../../results/metrics/validation_comparison.csv), [tuning](../../results/metrics/tuning_history.csv). Thời gian fit thuộc lần chạy này. Kết quả dùng snapshot `delivered` cuối kỳ, chưa bảo đảm khả dụng tại forecast origin.
-
-> **Vị trí trong dự án:** Hệ thống 4 mô hình cơ sở tham chiếu (Non-Machine Learning Baselines) tuân thủ nghiêm ngặt nguyên tắc học máy (Rule 10: *Always propose a baseline before complex models*).  
-> **Mã nguồn triển khai:** Các lớp [`ZeroRegressorFromScratch`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/baselines.py#L17), [`RevenueMeanRegressorFromScratch`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/baselines.py#L28), [`MeanRegressorFromScratch`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/baselines.py#L47) và [`PreviousWeekRegressorFromScratch`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/baselines.py#L65) trong [`src/models/baselines.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/baselines.py), được re-export qua Facade [`src/models/regressors.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/regressors.py).
+> **Vị trí trong dự án:** Hệ thống 4 mô hình cơ sở tham chiếu (Non-Machine Learning Baselines) tuân thủ nghiêm ngặt nguyên tắc học máy (Rule 10: *Always propose a baseline before complex models*).
+> **Mã nguồn triển khai:** Các lớp [`ZeroRegressorFromScratch`](../../src/models/baselines.py), [`RevenueMeanRegressorFromScratch`](../../src/models/baselines.py), [`MeanRegressorFromScratch`](../../src/models/baselines.py) và [`PreviousWeekRegressorFromScratch`](../../src/models/baselines.py) trong [`src/models/baselines.py`](../../src/models/baselines.py), được re-export qua Facade [`src/models/regressors.py`](../../src/models/regressors.py).
 
 ---
 
@@ -13,7 +11,7 @@
 Trong các bài toán hồi quy chuỗi thời gian bán lẻ, nếu chỉ báo cáo các chỉ số tuyệt đối (như RMSE = 50 BRL) mà không có hệ thống đối chứng, người nghiên cứu sẽ không thể xác định được mô hình máy học có thực sự mang lại giá trị gia tăng (*added value*) hay chỉ đang dự báo ngẫu nhiên quanh mức trung bình.
 
 Mục đích của việc thiết lập hệ thống 4 mô hình cơ sở (Baselines):
-- Thiết lập các mốc tham chiếu định lượng tối thiểu (Lower Bounds of Performance) mà bất kỳ mô hình máy học hợp lệ nào cũng bắt buộc phải vượt qua ($R^2 > 0$).
+- Thiết lập mốc đối chiếu theo metric đã chọn. R² > 0 không phải điều kiện để thuật toán ML hợp lệ; cần đánh giá mức cải thiện so với baseline khả dụng trên dữ liệu tương lai.
 - Kiểm tra các giả định nghiệp vụ đặc thù: Hiện tượng dữ liệu thưa nhiều số 0 (Zero-Inflated), quy luật quán tính tuần trước (Persistence Lag), và kỳ vọng toán học của phân phối doanh thu.
 - Tách bạch rõ ràng giữa năng lực học thực sự của các thuật toán với sự may rủi do cấu trúc dữ liệu tạo ra.
 
@@ -21,26 +19,26 @@ Mục đích của việc thiết lập hệ thống 4 mô hình cơ sở (Basel
 
 #### A. Zero Baseline (`ZeroRegressorFromScratch`)
 - **Nguyên lý:** Luôn dự báo doanh thu bằng 0 BRL cho mọi sản phẩm ở mọi tuần lịch:
-  
+
   $$
   \hat{y}_{\text{zero}}(x) = 0.0 \implies \hat{y}_{\text{sales}} = 0.0 \text{ BRL}
   $$
 
-- **Ý nghĩa:** Kiểm tra năng lực chống chịu sai số trên tập dữ liệu có trên 90% số dòng là tuần không bán được hàng (`sales = 0`). Đây là mốc chặn dưới tối thiểu cho sai số tuyệt đối MAE.
+- **Ý nghĩa:** Kiểm tra năng lực chống chịu sai số trên tập dữ liệu có trên 90% số dòng là tuần không bán được hàng (`sales = 0`). Khi median của tập đánh giá bằng 0, Zero tối ưu MAE trong lớp dự báo hằng số trên tập đó; không phải lower bound cho mọi dự báo phụ thuộc đặc trưng.
 
 #### B. Revenue Mean Baseline (`RevenueMeanRegressorFromScratch`)
 - **Nguyên lý:** Tính trung bình cộng của doanh thu thực tế trên toàn bộ tập Huấn luyện và luôn dự báo hằng số này:
-  
+
   $$
   \bar{y}_{\text{money}} = \frac{1}{N_{\text{train}}} \sum_{i=1}^{N_{\text{train}}} \text{sales}_i
   $$
 
 - Giá trị trả về trong không gian log để thống nhất giao diện: $\hat{y} = \log(1 + \bar{y}_{\text{money}})$.
-- **Ý nghĩa:** Theo định nghĩa của hệ số xác định $R^2$, dự báo bằng trung bình mẫu là nghiệm tối ưu của hàm mất mát MSE trên tập Train ($R^2_{\text{train}} = 0$).
+- **Ý nghĩa:** Theo định nghĩa của hệ số xác định $R^2$, dự báo bằng trung bình mẫu là nghiệm tối ưu MSE **trong lớp dự báo hằng số** trên Train ($R^2_{\text{train}} = 0$ khi phương sai target dương).
 
 #### C. Log Mean Baseline (`MeanRegressorFromScratch`)
 - **Nguyên lý:** Tính trung bình cộng của nhãn trong không gian log tự nhiên trên tập Train:
-  
+
   $$
   \hat{y}_{\text{log\_mean}} = \frac{1}{N_{\text{train}}} \sum_{i=1}^{N_{\text{train}}} y_i = \frac{1}{N_{\text{train}}} \sum_{i=1}^{N_{\text{train}}} \log(1 + \text{sales}_i)
   $$
@@ -49,7 +47,7 @@ Mục đích của việc thiết lập hệ thống 4 mô hình cơ sở (Basel
 
 #### D. Previous Week Baseline (`PreviousWeekRegressorFromScratch`)
 - **Nguyên lý:** Mô hình quán tính chuỗi thời gian (Persistence Forecasting), lấy doanh thu tuần liền trước ($t-1$, tương ứng đặc trưng `last_week_sales`) làm giá trị dự báo cho tuần này ($t$):
-  
+
   $$
   \hat{y}_{\text{sales}}(t) = \text{sales}(t-1)
   $$
@@ -67,7 +65,7 @@ Mục đích của việc thiết lập hệ thống 4 mô hình cơ sở (Basel
 
 ## 3. Data Used (Dữ liệu sử dụng)
 
-- **Phân chia Temporal Split 80/10/10:**
+- **Phân chia Temporal Split 80/10/10 theo số tuần, không theo số dòng:**
   - Fit duy nhất trên **655.066 dòng** Train.
   - Đánh giá trên **249.399 dòng** Validation và **293.717 dòng** Test.
 - **Tuân thủ quy tắc đóng băng tham số:** Các tham số thống kê ($\bar{y}_{\text{money}}$, $\bar{y}_{\text{log}}$) chỉ được học trên tập Train, hoàn toàn không được tính lại trên Validation hoặc Test để tránh rò rỉ dữ liệu.
@@ -75,6 +73,8 @@ Mục đích của việc thiết lập hệ thống 4 mô hình cơ sở (Basel
 ---
 
 ## 4. Evaluation (Phương pháp đánh giá)
+
+Protocol CLI chọn bằng Validation RMSE BRL trước khi báo cáo Test. Tỷ lệ split tính theo tuần; lag trong Test dùng lịch sử trước từng tuần đích, không phải dự báo nhiều tuần từ một origin cố định. Test đã được xem trong các vòng phân tích nên không coi là holdout mù mới. Số features thuộc snapshot, có thể thay đổi khi fit encoder trên dữ liệu khác.
 
 - Toàn bộ 4 mô hình cơ sở đều được đánh giá độc lập trên tập Kiểm thử Test (293.717 dòng) bằng bộ 4 chỉ số trên thang đo tiền tệ BRL:
   1. Mean Squared Error (MSE): $\text{BRL}^2$.
@@ -106,20 +106,20 @@ Mục đích của việc thiết lập hệ thống 4 mô hình cơ sở (Basel
 
 #### A. Hiện tượng $R^2$ âm nhẹ của các Baseline Hằng số (-0,0052 đến -0,0067)
 - Cả Revenue Mean, Log Mean và Zero Baseline đều có $R^2$ dao động quanh mức $0$ (từ $-0,0052$ đến $-0,0067$).
-- Giá trị này mang tính chuẩn mực lý thuyết: Do tập Test nằm ở tương lai (Temporal Split) nên phân phối doanh thu trung bình thực tế của Test có sự dịch chuyển nhẹ (*Concept Drift*) so với Train, khiến việc dự báo bằng trung bình Train đạt $R^2$ âm rất nhỏ trên Test.
-- **Zero Baseline đạt MAE thấp nhất (4,28 BRL):** Vì hơn 90% số tuần có doanh thu bằng 0, việc dự báo hằng số 0 sẽ đạt sai số tuyệt đối bằng 0 trên phần lớn tập dữ liệu. Tuy nhiên, mô hình này hoàn toàn vô dụng về mặt kinh doanh vì không thể dự báo được bất kỳ đơn hàng nào phát sinh.
+- Với target Test có phương sai dương, dự báo hằng $c$ cho $R^2=-N(c-\bar{s}_{test})^2/\sum_i(s_i-\bar{s}_{test})^2$. R² âm nhẹ phản ánh độ lệch của hằng dự báo so với trung bình Test, chưa đủ kết luận concept drift.
+- **Zero Baseline đạt MAE thấp nhất (4,28 BRL):** Vì hơn 90% số tuần có doanh thu bằng 0, việc dự báo hằng số 0 sẽ đạt sai số tuyệt đối bằng 0 trên phần lớn tập dữ liệu. Tuy nhiên, mô hình không phát hiện tuần phát sinh doanh thu; giá trị quyết định còn phụ thuộc chi phí dự báo thiếu/thừa, không chỉ MAE.
 
 #### B. Sự sụp đổ của Previous Week Baseline ($R^2 = -1,0757$)
 - Mô hình quán tính tuần trước có sai số RMSE vọt lên **75,39 BRL** (gấp 1,5 lần các baseline khác) và $R^2$ âm nặng tới **$-1,0757$**.
-- **Nguyên nhân cốt lõi (Hiện tượng trễ pha & Nhu cầu ngắt quãng):**
-  - Trong thương mại điện tử, các sản phẩm bán lẻ thường có tính ngắt quãng cao (Intermittent Demand): Một sản phẩm bán được 100 BRL ở tuần $t-1$ thường sẽ rơi vào tình trạng không có đơn hàng (`sales = 0`) ở tuần $t$ tiếp theo.
+- **Giả thuyết giải thích (Hiện tượng trễ pha & Nhu cầu ngắt quãng):**
+  - Trong thương mại điện tử, các sản phẩm bán lẻ thường có tính ngắt quãng cao (Intermittent Demand): Một sản phẩm bán được 100 BRL ở tuần $t-1$ có thể không có đơn hàng (`sales = 0`) ở tuần $t$ tiếp theo.
   - Mô hình quán tính mắc hai sai lầm đối xứng nghiêm trọng:
     1. **False Positive (Báo ảo):** Tuần trước có đơn hàng $\implies$ tuần này dự báo có doanh thu cao, nhưng thực tế doanh thu bằng 0.
     2. **False Negative (Bỏ sót):** Tuần trước không bán được $\implies$ tuần này dự báo 0 BRL, nhưng thực tế sản phẩm bất ngờ có giao dịch lớn.
-  - Điều này chứng minh rằng việc sao chép số liệu kỳ trước là chiến lược tồi tệ nhất cho bài toán dự báo chuỗi thời gian thưa.
+  - Previous Week thua ba baseline còn lại theo RMSE trong snapshot này; chưa chứng minh persistence luôn là chiến lược kém nhất trên mọi chuỗi thưa.
 
 ### 6.3. Khẳng định Giá trị Gia tăng của các Thuật toán Máy học
 Sự tồn tại của hệ thống 4 Baseline này làm nổi bật giá trị thực tế của các mô hình học máy được triển khai:
 - **Two-Stage Hurdle (Selected Artifact):** Đạt **RMSE 49,23 BRL** (giảm 3,23 BRL so với Revenue Mean 52,46 BRL), MSE **2.423,73**, và $R^2 = \mathbf{+0,1148}$ (kỷ lục toàn dự án).
-- **Tuned Decision Tree (Best Single Model):** Đạt **RMSE 50,41 BRL**, MAE **4,30 BRL**, $R^2 = \mathbf{+0,0719}$, cùng điểm phạt chi phí giả định thấp nhất (**40,62 BRL/sản phẩm**).
-- Khẳng định các mô hình máy học đã thực sự học được quy luật có ý nghĩa từ dữ liệu thay vì chỉ dự báo ngẫu nhiên quanh giá trị trung bình.
+- **Tuned Decision Tree (Best Single Model):** Đạt **RMSE 50,41 BRL**, MAE **4,30 BRL**, $R^2 = \mathbf{+0,0719}$, cùng điểm phạt chi phí giả định thấp nhất (**40,62 BRL/mẫu sản phẩm–tuần**).
+- Kết quả cho thấy cải thiện RMSE trên snapshot, nhưng Hurdle có MAE cao hơn Zero. Chưa có khoảng bất định hoặc kiểm định độc lập mới để khẳng định ý nghĩa thống kê hay lợi ích kinh doanh. Xem [thí nghiệm nhiều cửa sổ](experimental_validation.md).

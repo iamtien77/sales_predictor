@@ -1,7 +1,5 @@
 # Proxy doanh thu bảy ngày kể từ giao dịch đầu tiên quan sát được
 
-> **Snapshot hiện tại:** artifact ghi `2026-10-27 16:26:38`, chế độ `full`, có tuning, 655.066 dòng Train. Nguồn: [Test](../../results/metrics/model_comparison.csv), [Validation](../../results/metrics/validation_comparison.csv), [tuning](../../results/metrics/tuning_history.csv). Thời gian fit thuộc lần chạy này. Kết quả dùng snapshot `delivered` cuối kỳ, chưa bảo đảm khả dụng tại forecast origin.
-
 Tên lớp `ColdStartProductRegressor` và tên trường `launch_sales_brl` được giữ lại để tương thích với mã nguồn cũ. Các tên này **không có nghĩa** mô hình đã được kiểm chứng khả năng dự báo cold-start từ ngày niêm yết sản phẩm.
 
 ## Quy ước bài toán dự báo

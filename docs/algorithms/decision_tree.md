@@ -1,10 +1,8 @@
 # 🌳 Cây Quyết Định Hồi Quy (Decision Tree Regressor From-Scratch)
 
-> **Snapshot hiện tại:** artifact ghi `2026-10-27 16:26:38`, chế độ `full`, có tuning, 655.066 dòng Train. Nguồn: [Test](../../results/metrics/model_comparison.csv), [Validation](../../results/metrics/validation_comparison.csv), [tuning](../../results/metrics/tuning_history.csv). Thời gian fit thuộc lần chạy này. Kết quả dùng snapshot `delivered` cuối kỳ, chưa bảo đảm khả dụng tại forecast origin.
-
-> **Vị trí trong dự án:** Thuật toán hồi quy phi tuyến tính cốt lõi và là **Mô hình đơn khối tốt nhất (Best Single Model) - Hạng 2 toàn hệ thống** sau khi tinh chỉnh siêu tham số trên tập Validation độc lập. Đây cũng là khối xây dựng cơ sở (Base Learner) cho Random Forest, Gradient Boosting và Two-Stage Hurdle Regressor.  
-> **Mã nguồn triển khai:** Class [`DecisionTreeRegressorFromScratch`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/tree.py#L41) và đối tượng nút [`DecisionTreeNode`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/tree.py#L15) trong [`src/models/tree.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/tree.py), được re-export qua Facade [`src/models/regressors.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/regressors.py).  
-> **Module tinh chỉnh:** Hàm [`tune_decision_tree`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/tuning.py#L141) trong [`src/models/tuning.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/tuning.py).
+> **Vị trí trong dự án:** Thuật toán hồi quy phi tuyến tính cốt lõi và là **Mô hình đơn khối tốt nhất (Best Single Model) - Hạng 2 toàn hệ thống** sau khi tinh chỉnh siêu tham số trên tập Validation độc lập. Đây cũng là khối xây dựng cơ sở (Base Learner) cho Random Forest, Gradient Boosting và Two-Stage Hurdle Regressor.
+> **Mã nguồn triển khai:** Class [`DecisionTreeRegressorFromScratch`](../../src/models/tree.py) và đối tượng nút [`DecisionTreeNode`](../../src/models/tree.py) trong [`src/models/tree.py`](../../src/models/tree.py), được re-export qua Facade [`src/models/regressors.py`](../../src/models/regressors.py).
+> **Module tinh chỉnh:** Hàm [`tune_decision_tree`](../../src/models/tuning.py) trong [`src/models/tuning.py`](../../src/models/tuning.py).
 
 ---
 
@@ -43,11 +41,13 @@ Thuật toán quét qua các thuộc tính ứng viên và ngưỡng chia cắt 
 ## 2. Input / Output (Đầu vào & Đầu ra)
 
 ### 2.1. Định dạng dữ liệu đầu vào (Input)
+Số 89 là kích thước snapshot, không phải hằng số của thuật toán. API nhận cả sparse matrix nhưng chuyển thành dense `float64` nội bộ; RAM còn tăng bởi các bản sao khi chia nút. Caller phải bảo đảm X/y cùng số dòng, hữu hạn, Train không rỗng và đúng thứ tự feature; lớp chưa kiểm tra đầy đủ các điều kiện này.
+
 - **Ma trận đặc trưng $X$:** Mảng dense NumPy 2D `float64` kích thước $(N, 89)$ gồm:
   - 16 đặc trưng số học đã qua chuẩn hóa Z-Score (`CustomStandardScaler`).
   - 73 đặc trưng phân loại đã mã hóa One-Hot (`CustomOneHotEncoder`).
 - **Vector nhãn mục tiêu $y$:** Vector NumPy 1D kích thước $(N,)$ trong không gian log tự nhiên:
-  
+
   $$
   y = \log(1 + \text{sales}) = \text{log1p}(\text{sales})
   $$
@@ -65,7 +65,7 @@ Thuật toán quét qua các thuộc tính ứng viên và ngưỡng chia cắt 
 ## 3. Data Used (Dữ liệu sử dụng & Hợp đồng chuỗi thời gian)
 
 ### 3.1. Phân chia tập dữ liệu (Temporal Split)
-Dự án áp dụng cơ chế phân chia thuần theo dòng thời gian tuần lịch (Temporal Split 80/10/10), ngăn chặn 100% rò rỉ dữ liệu tương lai (*Data Leakage*):
+Dự án chia theo tuần lịch (Temporal Split 80/10/10 theo số tuần, không theo số dòng) và fit preprocessing chỉ trên Train. Cách chia này không loại hết leakage: nguồn lọc `delivered` cuối kỳ có thể chứa thông tin chưa biết tại forecast origin.
 - **Tập Huấn luyện (Train Set):** 655.066 dòng sản phẩm–tuần (~80% số tuần lịch đầu tiên).
 - **Tập Kiểm định (Validation Set):** 249.399 dòng sản phẩm–tuần (~10% số tuần lịch tiếp theo, dùng để tinh chỉnh siêu tham số và chọn mô hình chiến thắng).
 - **Tập Kiểm thử Độc lập (Test Set):** 293.717 dòng sản phẩm–tuần (~10% số tuần lịch cuối cùng, hoàn toàn giữ kín đến bước nghiệm thu).
@@ -75,7 +75,7 @@ Dự án áp dụng cơ chế phân chia thuần theo dòng thời gian tuần l
 - Tỷ lệ số dòng có doanh thu bằng 0 chiếm trên 90% tổng số bản ghi trong bảng weekly panel, phản ánh trung thực bản chất thưa của thị trường thương mại điện tử.
 
 ### 3.3. Thuộc tính đầu vào (89 Features)
-Toàn bộ đặc trưng đều tuân thủ nguyên tắc: **Chỉ sử dụng dữ liệu được chốt trước 00:00 thứ Hai của tuần đích**.
+Lag/rolling được thiết kế dùng lịch sử trước 00:00 thứ Hai của tuần đích. Trạng thái giao hàng cuối kỳ và metadata snapshot chưa được tái dựng theo thời điểm; chưa thể khẳng định toàn bộ feature đã khả dụng tại origin.
 - Lịch sử bán: `price`, `last_week_sales`, `sales_lag_2_weeks`, `sales_lag_4_weeks`.
 - Thống kê trượt: `sales_mean_4_weeks`, `sales_std_4_weeks`.
 - Sản lượng & Vòng đời: `last_week_units`, `weeks_since_first_sale`.
@@ -104,12 +104,15 @@ $$
 
 ## 5. Status (Trạng thái triển khai & Tối ưu kỹ thuật)
 
+Cây dừng khi đạt `max_depth`, thiếu `min_samples_split`, variance nhỏ hơn `1e-10` hoặc không có split gain dương. Hai nhánh đều phải đạt `min_samples_leaf`; lá trả trung bình nhãn log. `max_depth=None` thực tế thành 20; không có pruning hậu kỳ hoặc xử lý missing trực tiếp tại nút. Khi gain bằng nhau, giữ ứng viên gặp trước. `predict` trước `fit` gây `RuntimeError`. Importance từ giảm impurity không chứng minh tác động nhân quả.
+
 - **Trạng thái:** Hoàn thiện 100% From-Scratch thuần NumPy, không sử dụng thư viện `scikit-learn`.
 - **Tối ưu hóa phân vị Quantiles (`n_quantiles=16`):**
   - Trên tập dữ liệu Train khổng lồ gồm 655.066 dòng, việc duyệt qua toàn bộ các giá trị phân biệt $\mathcal{O}(N \log N)$ cho 89 đặc trưng sẽ gây nghẽn nghiêm trọng tài nguyên CPU.
-  - Mô hình cài đặt kỹ thuật lấy mẫu 16 điểm phân vị ứng viên (`np.percentile`) trải từ phân vị thứ 5 đến 95, giảm thời gian tìm điểm cắt xuống $\mathcal{O}(Q)$ ($Q = 16$), giúp cây huấn luyện xong chỉ trong **16,55 giây**.
+  - Khi có hơn 16 giá trị phân biệt, code lấy phân vị 5–95 trên **các giá trị phân biệt**, không phải trên phân phối mẫu. Với 2–16 giá trị, code dùng midpoint của các giá trị kề nhau; feature hằng bị bỏ qua.
+  - Mỗi threshold vẫn quét mẫu và tính variance: phần này tốn $\mathcal{O}(QN_t)$ mỗi feature/nút, cộng chi phí `np.unique` và tạo ngưỡng, không phải $\mathcal{O}(Q)$. Giới hạn ngưỡng có thể bỏ lỡ split tốt nhất. **16,55 giây** là runtime snapshot, không phải bảo đảm hiệu năng.
 - **Suy luận vector hóa theo batch masks:**
-  - Thay vì duyệt từng dòng qua đệ quy lá (`_predict_row`), hàm `predict` chia tập chỉ số theo mặt nạ nhị phân (`left_mask`, `~left_mask`), tăng tốc độ suy luận gấp hàng chục lần.
+  - Hàm `predict` chia tập chỉ số theo batch masks (`left_mask`, `~left_mask`) để giảm vòng lặp Python theo từng mẫu; chưa có benchmark đối chứng tại đây để định lượng mức tăng tốc.
 - **Trích xuất độ quan trọng đặc trưng (Feature Importances):**
   - Tích lũy lượng giảm phương sai có trọng số tại mỗi nút: $\text{Importance}(j) = \sum_{\text{node } t \in \text{split on } j} \Delta \text{Var}(t) \times N_t$, sau đó chuẩn hóa tổng về 1.0.
 
@@ -124,12 +127,14 @@ Mô hình Decision Tree được quét lưới 6 cấu hình siêu tham số đ�
 |:---:|:---:|:---:|:---:|:---|
 | Config 1 | 3 | 10 | 62.4085 | Cây quá nông, underfitting |
 | Config 2 | 3 | 30 | 62.4085 | Underfitting tương tự |
-| Config 3 | 5 | 10 | 61.1664 | Bản Default cơ sở |
+| Config 3 | 5 | 10 | 61.1664 | Ứng viên depth=5, leaf=10 |
 | Config 4 | 5 | 30 | 61.1664 | Tương đương bản Default |
 | **Config 5 (Tuned Winner)** | **8** | **10** | **59.2288** | **RMSE thấp nhất trong grid Decision Tree** |
 | Config 6 | 8 | 30 | 59.3857 | Giới hạn lá quá chặt làm giảm độ linh hoạt |
 
 Hệ thống chính thức chọn cấu hình **`max_depth=8, min_samples_leaf=10`** làm **Tuned Model (Mô hình đơn khối tốt nhất)**.
+
+Grid dùng một temporal holdout Validation, không phải nhiều fold CV. Default ở bảng Test có `min_samples_leaf=5`, khác ứng viên depth=5/leaf=10 trong grid. Nhãn log khi fit không trực tiếp tối ưu RMSE BRL; nghịch đảo trung bình log không mặc nhiên là kỳ vọng số học BRL.
 
 ### 6.2. Hiệu năng Độc lập trên Tập Kiểm thử Test (293.717 dòng)
 
@@ -140,6 +145,8 @@ Hệ thống chính thức chọn cấu hình **`max_depth=8, min_samples_leaf=1
 | Decision Tree (Default) | 2.615,33 | 4,33 | 51,14 | +0,0449 | 1,01 | 41,26 | 16,55s | 🥉 Hạng 3 |
 
 ### 6.3. Nhận xét kỹ thuật & Trade-offs
+Các xếp hạng chỉ thuộc snapshot hiện tại. WAPE là tỷ lệ (1 tương ứng 100%); Supply Chain Cost là điểm phạt giả định mỗi mẫu sản phẩm–tuần, không phải chi phí tồn kho thực đo. Chênh lệch R² chưa có khoảng tin cậy; xem [kiểm chứng thực nghiệm](experimental_validation.md) để biết phạm vi đối chứng đã có.
+
 1. **Năng lực vượt trội so với Baseline:** Cả hai phiên bản Decision Tree đều đạt $R^2 > 0$ và có RMSE thấp hơn 4 mô hình Baseline (Zero, Revenue Mean, Log Mean, Previous Week có $R^2 < 0$).
 2. **Hiệu quả của việc tinh chỉnh (Tuning):** Khi nâng độ sâu từ `max_depth=5` lên `max_depth=8` kết hợp ràng buộc `min_samples_leaf=10`, RMSE trên tập Test giảm từ 51,14 BRL xuống **50,41 BRL** (giảm 0,73 BRL), đồng thời hệ số xác định $R^2$ tăng từ 0,0449 lên **0,0719** (+60,1% năng lực giải thích phương sai). Đặc biệt, mô hình đạt điểm phạt chi phí giả định thấp nhất toàn dự án (**40,62 BRL/sản phẩm**) và MAE **4,30 BRL**, vẫn cao hơn Zero Baseline (4,28 BRL).
 3. **Ưu thế tốc độ & Khả năng mở rộng:** Nhờ cơ chế Quantile Split Candidates, cây đạt tốc độ huấn luyện vượt trội (16,55s so với 138,50s của Gradient Boosting) và đóng vai trò làm nền tảng vững chắc cho cả mô hình Two-Stage Hurdle và các giải pháp Ensemble.

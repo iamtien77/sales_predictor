@@ -1,10 +1,8 @@
 # 🎯 Mô Hình Hai Giai Đoạn (Two-Stage Hurdle Regressor From-Scratch)
 
-> **Snapshot hiện tại:** artifact ghi `2026-10-27 16:26:38`, chế độ `full`, có tuning, 655.066 dòng Train. Nguồn: [Test](../../results/metrics/model_comparison.csv), [Validation](../../results/metrics/validation_comparison.csv), [tuning](../../results/metrics/tuning_history.csv). Thời gian fit thuộc lần chạy này. Kết quả dùng snapshot `delivered` cuối kỳ, chưa bảo đảm khả dụng tại forecast origin.
-
 > **Vai trò:** Được chọn bằng Validation RMSE **55,9393 BRL**; Test RMSE **49,2314 BRL**, R² **0,1148**. Artifact phục vụ demo học thuật; không thắng mọi metric.
-> **Mã nguồn triển khai:** Class [`TwoStageHurdleRegressorFromScratch`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/hurdle.py#L18) trong [`src/models/hurdle.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/hurdle.py), được re-export qua Facade [`src/models/regressors.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/regressors.py).  
-> **Kiểm thử đơn vị:** Tệp [`tests/test_hurdle_and_metrics.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/tests/test_hurdle_and_metrics.py).
+> **Mã nguồn triển khai:** Class [`TwoStageHurdleRegressorFromScratch`](../../src/models/hurdle.py) trong [`src/models/hurdle.py`](../../src/models/hurdle.py), được re-export qua Facade [`src/models/regressors.py`](../../src/models/regressors.py).
+> **Kiểm thử đơn vị:** Tệp [`tests/test_hurdle_and_metrics.py`](../../tests/test_hurdle_and_metrics.py).
 
 ---
 
@@ -13,13 +11,13 @@
 ### 1.1. Mục đích bài toán
 Trong bài toán dự báo chuỗi thời gian bán lẻ theo từng cặp Sản phẩm – Tuần (Weekly Product Sales Panel) trên sàn thương mại điện tử Olist Brazil:
 - **Đặc thù phân phối Zero-Inflated cực đoan:** Hơn 90% số quan sát trong tập dữ liệu có doanh thu bằng đúng **0 BRL** (tuần không phát sinh đơn hàng). Chỉ có dưới 10% tuần thực sự bán được hàng.
-- **Xung đột mục tiêu của các mô hình hồi quy truyền thống:** Khi huấn luyện một mô hình hồi quy tiêu chuẩn (Standard Regressor) trực tiếp trên toàn bộ dữ liệu, hàm mất mát bình phương (MSE) bị chi phối áp đảo bởi 90% mẫu có nhãn 0. Hệ quả là mô hình bị xu hướng "nén phẳng" (over-smoothing), luôn dự báo giá trị sát 0 cho mọi mẫu và làm tê liệt khả năng nắm bắt độ lớn của các đỉnh doanh thu thực tế.
+- **Xung đột mục tiêu:** Nhiều mẫu 0 có thể kéo dự báo xuống thấp, nhưng mức chi phối MSE còn phụ thuộc độ lớn sai số của mẫu dương. Tối ưu MSE log không tương đương tối ưu RMSE BRL.
 - **Nhu cầu ra quyết định kinh doanh:** Nghiệp vụ quản trị chuỗi cung ứng cần trả lời hai câu hỏi độc lập:
   1. *Tuần này sản phẩm có khả năng bán được hay không?* (Phục vụ lập kế hoạch kích cầu / tiếp thị)
   2. *Nếu bán được, khối lượng doanh thu kỳ vọng là bao nhiêu?* (Phục vụ nhập hàng và chuẩn bị kho bãi)
 
 ### 1.2. Cơ sở toán học & Kiến trúc Hai giai đoạn (Hurdle Architecture)
-Mô hình Hurdle giải quyết triệt để sự xung đột này bằng cách **tách rời hoàn toàn bài toán thành 2 giai đoạn xác suất**:
+Mô hình Hurdle tách bài toán thành hai giai đoạn để học xác suất bán và độ lớn doanh thu dương; cách tách này không bảo đảm loại bỏ mọi sai số:
 
 ```
                        ┌─────────────────────────┐
@@ -31,55 +29,55 @@ Mô hình Hurdle giải quyết triệt để sự xung đột này bằng cách
 ┌───────────────────────────────┐        ┌───────────────────────────────────────┐
 │   Giai đoạn 1 (Occurrence)    │        │         Giai đoạn 2 (Severity)        │
 │   Ước lượng Xác suất có đơn   │        │     Hồi quy Doanh thu có điều kiện    │
-│    p(x) = P(sales > 0 | x)    │        │  s_pos(x) = E[sales | sales > 0, x]   │
+│    p(x) = P(sales > 0 | x)    │        │  s_pos(x) = expm1(predicted log)   │
 └──────────────┬────────────────┘        └───────────────────┬───────────────────┘
                │                                             │
                └──────────────────────┬──────────────────────┘
                                       ▼
                         ┌───────────────────────────┐
-                        │    Kỳ vọng Hợp nhất       │
-                        │ E[sales] = p(x) * s_pos(x)│
+                        │    Dự báo Hợp nhất       │
+                        │ sales_hat = p(x) * s_pos(x)│
                         └───────────────────────────┘
 ```
 
 #### A. Giai đoạn 1: Mô hình Ước lượng Xác suất phát sinh giao dịch (Occurrence Stage)
 - **Tập dữ liệu huấn luyện:** Toàn bộ mẫu huấn luyện với nhãn nhị phân:
-  
+
   $$
   z_i = \mathbb{I}(y_i > 0) = \begin{cases} 1 & \text{nếu } y_i > 0 \\ 0 & \text{nếu } y_i = 0 \end{cases}
   $$
 
 - **Bộ phân loại:** Cài đặt bằng `DecisionTreeRegressorFromScratch(max_depth=5, min_samples_leaf=5)`. Tại mỗi nút lá $L$, giá trị trung bình mẫu chính là xác suất thực nghiệm rơi vào lớp dương:
-  
+
   $$
   p(x) = \hat{P}(\text{sales} > 0 \mid x) = \frac{1}{|L|} \sum_{i \in L} z_i \in [0, 1]
   $$
 
 #### B. Giai đoạn 2: Mô hình Hồi quy Doanh thu có điều kiện (Severity Stage)
 - **Tập dữ liệu huấn luyện:** Chỉ bao gồm các mẫu **thực sự phát sinh đơn hàng** ($y_i > 0$):
-  
+
   $$
   \mathcal{D}_{\text{pos}} = \{(x_i, y_i) \mid y_i > 0\}
   $$
 
 - **Bộ hồi quy:** Cài đặt bằng `DecisionTreeRegressorFromScratch(max_depth=6, min_samples_leaf=5)`. Mô hình học hoàn toàn không bị nhiễu bởi các mẫu 0, tập trung toàn bộ năng lực phân nhánh để giải thích độ lớn của các đơn hàng.
 - **Giá trị dự báo tiền tệ có điều kiện:**
-  
+
   $$
-  \hat{s}_{\text{pos}}(x) = \max\left(0.0, \exp(\hat{y}_{\text{pos}}(x)) - 1\right) = \mathbb{E}[\text{sales} \mid \text{sales} > 0, x]
+  \hat{s}_{\text{pos}}(x) = \max\left(0.0, \exp(\hat{y}_{\text{pos}}(x)) - 1\right)
   $$
 
 #### C. Tổng hợp Kỳ vọng Toán học (Expected Revenue Combination)
-Theo định lý xác suất toàn phần, giá trị doanh thu tiền tệ kỳ vọng cuối cùng được tính:
+Đẳng thức lý thuyết về kỳ vọng là công thức dưới đây. Tuy nhiên, estimator nhánh dương trong code học trung bình log, nên phép nghịch đảo không mặc nhiên bằng kỳ vọng số học:
 
 $$
-\mathbb{E}[\text{sales} \mid x] = P(\text{sales} > 0 \mid x) \times \mathbb{E}[\text{sales} \mid \text{sales} > 0, x] = p(x) \times \hat{s}_{\text{pos}}(x)
+\mathbb{E}[\text{sales} \mid x] = P(\text{sales} > 0 \mid x) \times \mathbb{E}[\text{sales} \mid \text{sales} > 0, x]
 $$
 
-Để tương thích 100% với giao diện chuẩn của toàn hệ sinh thái pipeline, giá trị này được chuyển đổi về không gian log tự nhiên trước khi trả về:
+Implementation kết hợp $\hat{s}(x)=p(x)\hat{s}_{\text{pos}}(x)$ rồi trả về log1p. Trong một lá dương, Jensen cho $\exp(\overline{\log(1+s)})-1 \le \overline{s}$; đẳng thức chỉ khi doanh thu trong lá không biến thiên. Chưa có hiệu chỉnh retransformation hoặc calibration xác suất. Vì vậy đây là dự báo kết hợp, chưa phải estimator đã chứng minh không chệch của kỳ vọng doanh thu:
 
 $$
-\hat{y} = \log\left(1 + \mathbb{E}[\text{sales} \mid x]\right)
+\hat{y} = \log\left(1 + p(x)\hat{s}_{\text{pos}}(x)\right)
 $$
 
 ---
@@ -93,12 +91,12 @@ $$
 - **Vector nhãn mục tiêu $y$:** Vector NumPy 1D kích thước $(N,)$ trong không gian log tự nhiên: $y = \log(1 + \text{sales})$.
 
 ### 2.2. Định dạng dữ liệu đầu ra (Output)
-- **Phương thức `predict(X)`:** Trả về vector log kỳ vọng doanh thu $\hat{y} = \log(1 + \mathbb{E}[\text{sales}])$.
+- **Phương thức `predict(X)`:** Trả về vector log1p của dự báo kết hợp $\hat{y}=\log(1+p(x)\hat{s}_{\text{pos}}(x))$.
 - **Phương thức nghiệp vụ mở rộng:**
   - `predict_proba_sale(X)`: Trả về xác suất phát sinh giao dịch $p(x) \in [0, 1]$.
   - `predict_positive_sales(X)`: Trả về mức doanh thu BRL dự kiến trong tình huống có người mua.
 - **Chuyển đổi tiền tệ thực tế BRL:**
-  
+
   $$
   \hat{y}_{\text{money}} = \max\left(0.0, \exp(\hat{y}) - 1\right) \text{ BRL}
   $$
@@ -108,38 +106,40 @@ $$
 ## 3. Data used (Tập dữ liệu sử dụng & Đặc thù phân phối)
 
 - **Chiến lược phân chia:** Phân chia chuỗi thời gian theo tuần lịch (Temporal Split 80/10/10) trên 1.198.182 mẫu:
-  - **Tập Train (80%):** 655.066 dòng (chiếm các tuần đầu lịch sử).
-  - **Tập Validation (10%):** 249.399 dòng (các tuần kế tiếp).
-  - **Tập Test (10%):** 293.717 dòng (các tuần cuối cùng, kiểm định độc lập).
+  - **Tập Train (80% số tuần):** 655.066 dòng (chiếm các tuần đầu lịch sử).
+  - **Tập Validation (10% số tuần):** 249.399 dòng (các tuần kế tiếp).
+  - **Tập Test (10% số tuần):** 293.717 dòng (các tuần cuối cùng, kiểm định độc lập).
 - **Đặc trưng tập dương trong Train:**
-  - Chỉ có khoảng 55.000 dòng có $y > 0$ được đưa vào Giai đoạn 2 (Severity Stage). Việc thu hẹp kích thước tập Train ở Giai đoạn 2 giúp cây hồi quy học cực nhanh (chỉ mất ~0,41 giây) mà không bị nghẽn bộ nhớ.
+  - Nhánh severity chỉ dùng các mẫu Train có nhãn dương. CSV hiện có không ghi số mẫu dương hoặc thời gian riêng từng stage, nên không suy ra các số này từ tổng thời gian fit.
 - **Biến mục tiêu:** Doanh thu tuần của từng sản phẩm (tổng `price` các đơn hàng giao dịch thành công trong tuần, đơn vị BRL).
 
 ---
 
 ## 4. Evaluation (Phương pháp đánh giá)
 
+Protocol CLI chọn bằng Validation RMSE BRL trước khi báo cáo Test. Tỷ lệ split tính theo tuần; lag trong Test dùng lịch sử trước từng tuần đích, không phải dự báo nhiều tuần từ một origin cố định. Test đã được xem trong các vòng phân tích nên không coi là holdout mù mới. Số features thuộc snapshot, có thể thay đổi khi fit encoder trên dữ liệu khác.
+
 Hệ thống đánh giá trên thang đo tiền tệ thực tế BRL với đầy đủ bộ chỉ số khoa học và nghiệp vụ:
 1. **Root Mean Squared Error (RMSE):** Đo lường độ lệch bình phương trung bình trên đơn vị BRL.
 2. **Mean Squared Error (MSE):** Thang đo phạt các sai số cực đoan ($\text{BRL}^2$).
 3. **Mean Absolute Error (MAE):** Đo lường sai lệch tuyệt đối trung bình (BRL).
-4. **Hệ số xác định ($R^2$ Score):** Đo lường tỷ lệ phương sai thực tế mà mô hình giải thích được ($R^2 > 0$ chứng minh vượt trội hơn baseline trung bình).
+4. **Hệ số xác định ($R^2$ Score):** So sánh SSE với dự báo hằng bằng trung bình của chính tập đánh giá. R² dương không chứng minh ý nghĩa thống kê hoặc lợi ích kinh doanh; khi target hằng, cần nêu quy ước xử lý riêng.
 5. **Weighted Absolute Percentage Error (WAPE):**
-   
+
    $$
    \text{WAPE} = \frac{\sum_{i=1}^N |y_i - \hat{y}_i|}{\sum_{i=1}^N y_i}
    $$
-   
-   Chỉ số tiêu chuẩn vàng của chuỗi cung ứng bán lẻ, không bị lỗi chia cho 0 khi doanh thu thực tế bằng 0 BRL.
-6. **Supply Chain Cost Per Item (BRL):** Ma trận tổn thất chi phí thực tế mô phỏng chi phí tồn kho (Overstock penalty = 2 BRL) và chi phí đứt hàng (Understock penalty = 10 BRL).
+
+   WAPE chấp nhận từng dòng actual bằng 0 nếu tổng actual dương. Khi tổng actual ≤ 1e-9, implementation trả 0 nếu tổng lỗi ≤ 1e-9, ngược lại trả 1; đây là quy ước phần mềm, không phải tỷ lệ WAPE có nghĩa khi mẫu số bằng 0. Giá trị 1,97 tương ứng khoảng 197%.
+6. **Supply Chain Cost Per Item (BRL):** Điểm phạt giả định $N^{-1}\sum_i[10\max(s_i-\hat{s}_i,0)+2\max(\hat{s}_i-s_i,0)]$ trên mỗi mẫu sản phẩm–tuần. Hệ số 10 và 2 nhân sai số doanh thu, không phải chi phí tồn kho thực đo trên mỗi đơn vị hàng.
 
 ---
 
 ## 5. Status (Trạng thái triển khai & Tối ưu kỹ thuật)
 
-- **Trạng thái:** Hoàn thiện 100% From-Scratch thuần NumPy, tuân thủ nguyên tắc không phụ thuộc thư viện ngoài.
-- **Tách module độc lập:** Mã nguồn được đóng gói sạch tại [`src/models/hurdle.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/hurdle.py) và kiểm thử hồi quy tại [`tests/test_hurdle_and_metrics.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/tests/test_hurdle_and_metrics.py).
-- **Cơ chế Fallback an toàn:** Nếu số lượng mẫu dương trong tập huấn luyện quá nhỏ ($< \max(10, \text{min\_samples\_leaf})$), mô hình tự động kích hoạt cơ chế dự phòng `pos_fallback_value_` bằng trung bình mẫu để bảo đảm không phát sinh lỗi ngoại lệ thời gian chạy.
+- **Trạng thái:** Logic mô hình được cài đặt From-Scratch bằng NumPy; dự án vẫn dùng các thư viện hỗ trợ dữ liệu và ma trận, không dùng estimator của scikit-learn.
+- **Tách module độc lập:** Mã nguồn được đóng gói sạch tại [`src/models/hurdle.py`](../../src/models/hurdle.py) và kiểm thử hồi quy tại [`tests/test_hurdle_and_metrics.py`](../../tests/test_hurdle_and_metrics.py).
+- **Cơ chế Fallback an toàn:** Nếu số lượng mẫu dương trong tập huấn luyện quá nhỏ ($< \max(10, \text{min\_samples\_leaf})$), mô hình tự động kích hoạt cơ chế dự phòng `pos_fallback_value_` bằng trung bình **log của mẫu dương**; nếu không có mẫu dương thì dùng 0 và dự báo kết hợp bằng 0. Nếu tất cả mẫu đều dương, occurrence bằng 1. Các phương thức dự báo yêu cầu đã fit; fallback không thay thế kiểm tra dữ liệu đầu vào.
 
 ---
 
@@ -162,7 +162,7 @@ Hệ thống đánh giá trên thang đo tiền tệ thực tế BRL với đầ
 1. **Vượt trội về khả năng phân tán phương sai ($R^2$ cao kỷ lục toàn hệ thống):**
    - Đạt **$R^2 = +0,1148$**, cao gấp hơn **2,5 lần** so với Decision Tree mặc định ($R^2 = +0,0449$) và vượt qua Tuned Decision Tree ($R^2 = +0,0719$).
    - Về chỉ số RMSE, mô hình đạt **49,23 BRL**, là mức sai số thấp nhất trong toàn bộ hệ thống (giảm 6,2% so với Zero Baseline 52,50 BRL).
-   - Nguyên nhân: Nhờ tách rời việc ước lượng độ lớn doanh thu sang Giai đoạn 2, cây hồi quy không bị 90% số 0 kéo tụt xuống sát mức đáy, từ đó dự báo chính xác hơn độ lớn của các đơn hàng phát sinh.
+   - Giả thuyết: tách nhánh dương có thể giảm tác động của các mẫu 0 lên severity. Cần ablation cùng dữ liệu và protocol để xác định đóng góp của từng stage; metrics tổng hợp chưa chứng minh cơ chế này.
 
 2. **Tốc độ huấn luyện tối ưu:**
    - CSV ghi tổng thời gian fit **15,08 giây**, không tách hai giai đoạn. Random Forest: **42,11 giây**; Gradient Boosting: **138,50 giây**.
