@@ -32,7 +32,11 @@
 - **Quy tắc Tuần Lịch:** Tuần được tính trọn vẹn từ thứ Hai (00:00:00) đến Chủ nhật (23:59:59). Cột `order_purchase_timestamp` trong weekly panel đại diện cho ngày thứ Hai của **tuần cần dự báo (target week)**.
 - **Biến mục tiêu (Target Variable):**
   
-  $$\text{sales} = \sum_{i \in \text{week}} \text{price}_i \quad (\text{đơn vị BRL})$$
+
+$$
+\text{sales} = \sum_{i \in \text{week}} \text{price}_i \quad (\text{đơn vị BRL})
+$$
+
 
 - **Bảo toàn phân phối Zero-Sales:**
   - Với mỗi sản phẩm, thời điểm quan sát bắt đầu từ **tuần phát sinh đơn hàng đầu tiên** cho đến tuần cuối cùng của toàn hệ thống.

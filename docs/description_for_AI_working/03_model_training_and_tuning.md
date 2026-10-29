@@ -19,7 +19,11 @@
 - Triển khai lớp `LinearRegressionFromScratch` trong [`src/models/linear.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/linear.py).
 - Sử dụng bộ giải nghiệm giải tích đóng Normal Equation qua phép nhân ma trận thưa và giả nghịch đảo Moore-Penrose:
   
-  $$\tilde{w}^* = \left(\tilde{X}^\top \tilde{X} + \alpha_{\text{ridge}} I_0\right)^{-1} \tilde{X}^\top y$$
+
+$$
+\tilde{w}^* = \left(\tilde{X}^\top \tilde{X} + \alpha_{\text{ridge}} I_0\right)^{-1} \tilde{X}^\top y
+$$
+
 
 - **Cơ chế Kẹp biên Thích ứng (Adaptive Clamping):** Nhằm ngăn chặn hiện tượng nổ số học ($1,30 \times 10^8$ BRL) khi nghịch đảo hàm mũ $\exp(w^T x) - 1$, mô hình tự động kẹp biên dự báo log trong miền $[y_{\min} - 0.5 \cdot \text{span}, y_{\max} + 0.5 \cdot \text{span}]$. Thời gian huấn luyện siêu tốc: **0,02 giây**.
 
@@ -27,7 +31,11 @@
 - Triển khai lớp `DecisionTreeRegressorFromScratch` trong [`src/models/tree.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/models/tree.py).
 - Hàm độ lợi tối ưu hóa: **Giảm phương sai (Variance Reduction)** tại mỗi nút phân nhánh:
   
-  $$\Delta \text{Var} = \text{Var}(D) - \left(\frac{|D_L|}{|D|}\text{Var}(D_L) + \frac{|D_R|}{|D|}\text{Var}(D_R)\right)$$
+
+$$
+\Delta \text{Var} = \text{Var}(D) - \left(\frac{|D_L|}{|D|}\text{Var}(D_L) + \frac{|D_R|}{|D|}\text{Var}(D_R)\right)
+$$
+
 
 - **Tối ưu hóa 16 Quantiles:** Quét 16 điểm phân vị ứng viên trên 655k mẫu, giúp cây khớp nhanh chóng chỉ trong **15,22 giây**.
 

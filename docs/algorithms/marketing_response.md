@@ -44,7 +44,7 @@ Code sao chép `base_product`, gán `ad_spend=0`, rồi gọi `predict_sales` đ
 
 ### 2.3. Các Chỉ Số Đo Lường Hiệu Quả Tài Chính
 
-Với $A>0$, $S_0>0$ và biên lợi nhuận giả định $m=\text{gross_margin}$:
+Với $A>0$, $S_0>0$ và biên lợi nhuận giả định $m$ (biên lợi nhuận gộp `gross_margin`)$:
 
 1. **Doanh thu gia tăng:** $\Delta S=S_0\beta\ln(1+A/R)$.
 2. **Tăng trưởng:** $100\Delta S/S_0$.
@@ -85,8 +85,9 @@ Với $A\ge0$, $R>0$, $S_0\ge0$, $\beta\ge0$:
 
 1. **Không chi:** $u(0)=1$, $\Delta S(0)=0$.
 2. **Lợi biên:**
-   $$\frac{\partial\Delta S}{\partial A}=\frac{S_0\beta}{R+A}\ge0,\qquad
-   \frac{\partial^2\Delta S}{\partial A^2}=-\frac{S_0\beta}{(R+A)^2}\le0.$$
+$$
+\frac{\partial\Delta S}{\partial A}=\frac{S_0\beta}{R+A}\ge0,\qquad \frac{\partial^2\Delta S}{\partial A^2}=-\frac{S_0\beta}{(R+A)^2}\le0
+$$
    Bất đẳng thức nghiêm chỉ khi $S_0\beta>0$; nếu baseline hoặc hệ số bằng 0 thì đường đáp ứng phẳng.
 3. **Không có trần hữu hạn:** Khi $S_0\beta>0$, $\Delta S\to\infty$ khi $A\to\infty$, dù lợi biên tiến về 0. Chưa mô hình hóa quy mô thị trường, giới hạn tồn kho hay bão hòa hữu hạn.
 4. **Hiệu quả theo giả định:** Với $A>0$, ROI âm khi $m\Delta S<A$. Điều kiện này không tự xác định ngân sách tối ưu; code chỉ tính trên các mức chi được cung cấp.

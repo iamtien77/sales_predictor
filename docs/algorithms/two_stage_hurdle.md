@@ -43,29 +43,29 @@ Mô hình Hurdle tách bài toán thành hai giai đoạn để học xác suấ
 #### A. Giai đoạn 1: Mô hình Ước lượng Xác suất phát sinh giao dịch (Occurrence Stage)
 - **Tập dữ liệu huấn luyện:** Toàn bộ mẫu huấn luyện với nhãn nhị phân:
 
-  $$
+$$
   z_i = \mathbb{I}(y_i > 0) = \begin{cases} 1 & \text{nếu } y_i > 0 \\ 0 & \text{nếu } y_i = 0 \end{cases}
-  $$
+$$
 
 - **Bộ phân loại:** Cài đặt bằng `DecisionTreeRegressorFromScratch(max_depth=5, min_samples_leaf=5)`. Tại mỗi nút lá $L$, giá trị trung bình mẫu chính là xác suất thực nghiệm rơi vào lớp dương:
 
-  $$
+$$
   p(x) = \hat{P}(\text{sales} > 0 \mid x) = \frac{1}{|L|} \sum_{i \in L} z_i \in [0, 1]
-  $$
+$$
 
 #### B. Giai đoạn 2: Mô hình Hồi quy Doanh thu có điều kiện (Severity Stage)
 - **Tập dữ liệu huấn luyện:** Chỉ bao gồm các mẫu **thực sự phát sinh đơn hàng** ($y_i > 0$):
 
-  $$
+$$
   \mathcal{D}_{\text{pos}} = \{(x_i, y_i) \mid y_i > 0\}
-  $$
+$$
 
 - **Bộ hồi quy:** Cài đặt bằng `DecisionTreeRegressorFromScratch(max_depth=6, min_samples_leaf=5)`. Mô hình học hoàn toàn không bị nhiễu bởi các mẫu 0, tập trung toàn bộ năng lực phân nhánh để giải thích độ lớn của các đơn hàng.
 - **Giá trị dự báo tiền tệ có điều kiện:**
 
-  $$
+$$
   \hat{s}_{\text{pos}}(x) = \max\left(0.0, \exp(\hat{y}_{\text{pos}}(x)) - 1\right)
-  $$
+$$
 
 #### C. Tổng hợp Kỳ vọng Toán học (Expected Revenue Combination)
 Đẳng thức lý thuyết về kỳ vọng là công thức dưới đây. Tuy nhiên, estimator nhánh dương trong code học trung bình log, nên phép nghịch đảo không mặc nhiên bằng kỳ vọng số học:
@@ -97,9 +97,9 @@ $$
   - `predict_positive_sales(X)`: Trả về mức doanh thu BRL dự kiến trong tình huống có người mua.
 - **Chuyển đổi tiền tệ thực tế BRL:**
 
-  $$
+$$
   \hat{y}_{\text{money}} = \max\left(0.0, \exp(\hat{y}) - 1\right) \text{ BRL}
-  $$
+$$
 
 ---
 
@@ -126,9 +126,9 @@ Hệ thống đánh giá trên thang đo tiền tệ thực tế BRL với đầ
 4. **Hệ số xác định ($R^2$ Score):** So sánh SSE với dự báo hằng bằng trung bình của chính tập đánh giá. R² dương không chứng minh ý nghĩa thống kê hoặc lợi ích kinh doanh; khi target hằng, cần nêu quy ước xử lý riêng.
 5. **Weighted Absolute Percentage Error (WAPE):**
 
-   $$
+$$
    \text{WAPE} = \frac{\sum_{i=1}^N |y_i - \hat{y}_i|}{\sum_{i=1}^N y_i}
-   $$
+$$
 
    WAPE chấp nhận từng dòng actual bằng 0 nếu tổng actual dương. Khi tổng actual ≤ 1e-9, implementation trả 0 nếu tổng lỗi ≤ 1e-9, ngược lại trả 1; đây là quy ước phần mềm, không phải tỷ lệ WAPE có nghĩa khi mẫu số bằng 0. Giá trị 1,97 tương ứng khoảng 197%.
 6. **Supply Chain Cost Per Item (BRL):** Điểm phạt giả định $N^{-1}\sum_i[10\max(s_i-\hat{s}_i,0)+2\max(\hat{s}_i-s_i,0)]$ trên mỗi mẫu sản phẩm–tuần. Hệ số 10 và 2 nhân sai số doanh thu, không phải chi phí tồn kho thực đo trên mỗi đơn vị hàng.
@@ -139,7 +139,7 @@ Hệ thống đánh giá trên thang đo tiền tệ thực tế BRL với đầ
 
 - **Trạng thái:** Logic mô hình được cài đặt From-Scratch bằng NumPy; dự án vẫn dùng các thư viện hỗ trợ dữ liệu và ma trận, không dùng estimator của scikit-learn.
 - **Tách module độc lập:** Mã nguồn được đóng gói sạch tại [`src/models/hurdle.py`](../../src/models/hurdle.py) và kiểm thử hồi quy tại [`tests/test_hurdle_and_metrics.py`](../../tests/test_hurdle_and_metrics.py).
-- **Cơ chế Fallback an toàn:** Nếu số lượng mẫu dương trong tập huấn luyện quá nhỏ ($< \max(10, \text{min\_samples\_leaf})$), mô hình tự động kích hoạt cơ chế dự phòng `pos_fallback_value_` bằng trung bình **log của mẫu dương**; nếu không có mẫu dương thì dùng 0 và dự báo kết hợp bằng 0. Nếu tất cả mẫu đều dương, occurrence bằng 1. Các phương thức dự báo yêu cầu đã fit; fallback không thay thế kiểm tra dữ liệu đầu vào.
+- **Cơ chế Fallback an toàn:** Nếu số lượng mẫu dương trong tập huấn luyện quá nhỏ ($< \max(10, \mathtt{min\_samples\_leaf})$), mô hình tự động kích hoạt cơ chế dự phòng `pos_fallback_value_` bằng trung bình **log của mẫu dương**; nếu không có mẫu dương thì dùng 0 và dự báo kết hợp bằng 0. Nếu tất cả mẫu đều dương, occurrence bằng 1. Các phương thức dự báo yêu cầu đã fit; fallback không thay thế kiểm tra dữ liệu đầu vào.
 
 ---
 

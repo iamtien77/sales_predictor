@@ -20,18 +20,18 @@ Mục đích của việc thiết lập hệ thống 4 mô hình cơ sở (Basel
 #### A. Zero Baseline (`ZeroRegressorFromScratch`)
 - **Nguyên lý:** Luôn dự báo doanh thu bằng 0 BRL cho mọi sản phẩm ở mọi tuần lịch:
 
-  $$
+$$
   \hat{y}_{\text{zero}}(x) = 0.0 \implies \hat{y}_{\text{sales}} = 0.0 \text{ BRL}
-  $$
+$$
 
 - **Ý nghĩa:** Kiểm tra năng lực chống chịu sai số trên tập dữ liệu có trên 90% số dòng là tuần không bán được hàng (`sales = 0`). Khi median của tập đánh giá bằng 0, Zero tối ưu MAE trong lớp dự báo hằng số trên tập đó; không phải lower bound cho mọi dự báo phụ thuộc đặc trưng.
 
 #### B. Revenue Mean Baseline (`RevenueMeanRegressorFromScratch`)
 - **Nguyên lý:** Tính trung bình cộng của doanh thu thực tế trên toàn bộ tập Huấn luyện và luôn dự báo hằng số này:
 
-  $$
+$$
   \bar{y}_{\text{money}} = \frac{1}{N_{\text{train}}} \sum_{i=1}^{N_{\text{train}}} \text{sales}_i
-  $$
+$$
 
 - Giá trị trả về trong không gian log để thống nhất giao diện: $\hat{y} = \log(1 + \bar{y}_{\text{money}})$.
 - **Ý nghĩa:** Theo định nghĩa của hệ số xác định $R^2$, dự báo bằng trung bình mẫu là nghiệm tối ưu MSE **trong lớp dự báo hằng số** trên Train ($R^2_{\text{train}} = 0$ khi phương sai target dương).
@@ -39,18 +39,18 @@ Mục đích của việc thiết lập hệ thống 4 mô hình cơ sở (Basel
 #### C. Log Mean Baseline (`MeanRegressorFromScratch`)
 - **Nguyên lý:** Tính trung bình cộng của nhãn trong không gian log tự nhiên trên tập Train:
 
-  $$
-  \hat{y}_{\text{log\_mean}} = \frac{1}{N_{\text{train}}} \sum_{i=1}^{N_{\text{train}}} y_i = \frac{1}{N_{\text{train}}} \sum_{i=1}^{N_{\text{train}}} \log(1 + \text{sales}_i)
-  $$
+$$
+  \hat{y}_{\text{log-mean}} = \frac{1}{N_{\text{train}}} \sum_{i=1}^{N_{\text{train}}} y_i = \frac{1}{N_{\text{train}}} \sum_{i=1}^{N_{\text{train}}} \log(1 + \text{sales}_i)
+$$
 
 - **Ý nghĩa:** Mốc đối chứng hằng số trong cùng không gian tối ưu hóa của các thuật toán hồi quy.
 
 #### D. Previous Week Baseline (`PreviousWeekRegressorFromScratch`)
 - **Nguyên lý:** Mô hình quán tính chuỗi thời gian (Persistence Forecasting), lấy doanh thu tuần liền trước ($t-1$, tương ứng đặc trưng `last_week_sales`) làm giá trị dự báo cho tuần này ($t$):
 
-  $$
+$$
   \hat{y}_{\text{sales}}(t) = \text{sales}(t-1)
-  $$
+$$
 
 - **Ý nghĩa:** Trong phân tích chuỗi thời gian truyền thống, mô hình quán tính là mốc so sánh tiêu chuẩn để chứng minh mô hình mới có khả năng nắm bắt xu hướng tốt hơn việc chỉ "sao chép" số liệu của kỳ trước.
 

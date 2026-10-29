@@ -48,17 +48,17 @@ Số 89 là kích thước snapshot, không phải hằng số của thuật to�
   - 73 đặc trưng phân loại đã mã hóa One-Hot (`CustomOneHotEncoder`).
 - **Vector nhãn mục tiêu $y$:** Vector NumPy 1D kích thước $(N,)$ trong không gian log tự nhiên:
 
-  $$
+$$
   y = \log(1 + \text{sales}) = \text{log1p}(\text{sales})
-  $$
+$$
 
 ### 2.2. Định dạng dữ liệu đầu ra (Output)
 - **Phương thức `predict(X)`:** Trả về vector dự báo liên tục $\hat{y}$ trong không gian log tự nhiên.
 - **Hàm chuyển đổi tiền tệ thực tế BRL:** Khi suy luận thực tế và đánh giá hiệu năng, giá trị được chuyển đổi ngược về thang đo BRL và chặn dưới bằng 0:
 
-  $$
+$$
   \hat{y}_{\text{sales}} = \max\left(0.0, \exp(\hat{y}) - 1\right) = \max\left(0.0, \text{expm1}(\hat{y})\right)
-  $$
+$$
 
 ---
 

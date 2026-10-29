@@ -34,34 +34,34 @@ $$
 #### B. Quy trình thuật toán tuần tự $M$ vòng lặp
 1. **Khởi tạo giá trị dự báo cơ sở $F_0(x)$:** Giá trị tối ưu là trung bình cộng của nhãn huấn luyện:
 
-   $$
+$$
    F_0(x) = \arg\min_{\gamma} \sum_{i=1}^{N} L(y_i, \gamma) = \frac{1}{N} \sum_{i=1}^{N} y_i = \bar{y}_{\text{train}}
-   $$
+$$
 
-2. **Vòng lặp $m = 1, 2, \dots, M$ (với $M = \text{n\_estimators}$):**
+2. **Vòng lặp $m = 1, 2, \dots, M$ (với $M$ (số cây `n_estimators`)):**
    - **Bước 2.1 (Tính phần dư):** Với mỗi mẫu $i \in \{1, \dots, N\}$, tính phần dư bằng negative gradient:
 
-     $$
+$$
      r_{im} = y_i - F_{m-1}(x_i)
-     $$
+$$
 
-     Lưu lại giá trị hàm mất mát trung bình: $\text{Loss}_m = \frac{1}{N} \sum_{i=1}^{N} r_{im}^2$.
+     Lưu lại giá trị hàm mất mát trung bình: $\mathrm{Loss}_m = \frac{1}{N} \sum_{i=1}^{N} r_{im}^2$.
 
    - **Bước 2.2 (Huấn luyện cây con trên phần dư):** Khớp một cây quyết định hồi quy nông $h_m(x)$ (thường chọn `max_depth=3`) trên tập dữ liệu $\{(x_i, r_{im})\}_{i=1}^N$.
 
    - **Bước 2.3 (Cập nhật mô hình tích lũy với hệ số co hẹp $\eta$):**
 
-     $$
+$$
      F_m(x) = F_{m-1}(x) + \eta \cdot h_m(x)
-     $$
+$$
 
      Trong đó $\eta \in (0, 1]$ là `learning_rate` (hệ số co hẹp), giúp kiểm soát đóng góp của từng cây con và chống phân kỳ.
 
 3. **Dự báo cuối cùng:**
 
-   $$
+$$
    \hat{y}(x) = F_M(x) = F_0(x) + \eta \sum_{m=1}^{M} h_m(x)
-   $$
+$$
 
 ---
 
@@ -77,9 +77,9 @@ API nhận sparse matrix nhưng densify thành `float64`; số 89 thuộc snapsh
 - **Phương thức `predict(X)`:** Trả về vector dự báo liên tục $\hat{y}$ (không gian log).
 - **Hàm chuyển đổi tiền tệ thực tế BRL:**
 
-  $$
+$$
   \hat{y}_{\text{sales}} = \max\left(0.0, \exp(\hat{y}) - 1\right) = \max\left(0.0, \text{expm1}(\hat{y})\right)
-  $$
+$$
 
 ---
 
@@ -113,9 +113,9 @@ API nhận sparse matrix nhưng densify thành `float64`; số 89 thuộc snapsh
 - **Ghi nhận Loss (`train_loss_history_`):** Lưu MSE trước update mỗi vòng, ứng với F₀ đến Fₘ₋₁; không chứa loss sau cây cuối. Không có early stopping.
 - **Độ quan trọng đặc trưng tổng hợp:**
 
-  $$
+$$
   \text{Importance}(j) = \frac{1}{M} \sum_{m=1}^{M} \text{Importance}_{h_m}(j)
-  $$
+$$
 
 ---
 

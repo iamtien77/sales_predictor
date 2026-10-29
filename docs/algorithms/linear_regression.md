@@ -67,9 +67,9 @@ Hai solver dùng cùng quy ước `alpha_ridge`, không phạt intercept. Khi Gr
 - **Phương thức `predict(X)`:** Trả về vector dự báo $\hat{y}$ trong không gian log tự nhiên (có áp dụng cơ chế Kẹp biên Thích ứng).
 - **Hàm chuyển đổi tiền tệ thực tế BRL:**
 
-  $$
+$$
   \hat{y}_{\text{sales}} = \max\left(0.0, \exp(\hat{y}) - 1\right) \text{ BRL}
-  $$
+$$
 
 ---
 
@@ -126,9 +126,9 @@ Trong thử nghiệm ban đầu khi chưa có kẹp biên, Linear Regression b�
    - Trong không gian log, siêu phẳng tuyến tính không có biên chặn trên ($\hat{y} \in (-\infty, +\infty)$). Do hiện tượng cộng hưởng của các trọng số âm/dương lớn trên không gian 89 chiều thưa, chỉ cần một vài mẫu kiểm thử có đặc trưng ngoại lai khiến giá trị log dự báo vượt ngưỡng bình thường (ví dụ: $\hat{y} \approx 38$).
    - Khi áp dụng hàm chuyển đổi ngược $\hat{y}_{\text{sales}} = \exp(\hat{y}) - 1$, giá trị bùng nổ theo cấp số nhân:
 
-     $$
+$$
      \exp(38) \approx 3,18 \times 10^{16} \text{ BRL}
-     $$
+$$
 
    - Ví dụ minh họa: nếu một dự báo khoảng $3,18\times10^{16}$ BRL có actual nhỏ hơn nhiều, đóng góp MSE trên 293.717 mẫu khoảng $3,44\times10^{27}$, không phải $10^{16}$. Ví dụ này giải thích khuếch đại hàm mũ, không phải phép tái hiện con số lịch sử trong bảng.
 
@@ -143,9 +143,9 @@ Mã nguồn [src/models/linear.py](../../src/models/linear.py) bổ sung kẹp b
 - **Nguyên lý hoạt động:** Trong quá trình `fit(X, y)`, mô hình ghi nhận miền giá trị nhãn thực tế của tập huấn luyện: $y_{\min}$ và $y_{\max}$, với độ trải $\text{span} = \max(1, y_{\max} - y_{\min})$.
 - Khi `predict(X)`, mọi giá trị dự báo vượt khỏi biên an toàn sẽ được kẹp lại:
 
-  $$
+$$
   \hat{y}_{\text{safe}} = \text{clip}\left(\hat{y}, y_{\min} - 0.5 \cdot \text{span}, y_{\max} + 0.5 \cdot \text{span}\right)
-  $$
+$$
 
 - **Kết quả hiện tại:** RMSE **5.511,67 BRL**, vẫn lớn. Số 130 triệu BRL thuộc ghi chú lịch sử, chưa có đối chứng cùng lần chạy để quy chênh lệch cho clamping.
 

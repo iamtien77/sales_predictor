@@ -68,9 +68,9 @@ API nhận sparse matrix nhưng densify thành `float64`; số 89 thuộc snapsh
 - **Phương thức `predict(X)`:** Trả về vector dự báo liên tục $\hat{y}$ (không gian log).
 - **Hàm chuyển đổi tiền tệ thực tế BRL:**
 
-  $$
+$$
   \hat{y}_{\text{sales}} = \max\left(0.0, \exp(\hat{y}) - 1\right) = \max\left(0.0, \text{expm1}(\hat{y})\right)
-  $$
+$$
 
 ---
 
@@ -108,9 +108,9 @@ Importance thực tế lấy trung bình importance đã chuẩn hóa của các
 - **Quản lý trạng thái ngẫu nhiên độc lập (`RandomState`):** Mỗi cây con được gán một seed ngẫu nhiên độc lập sinh từ `rng.randint()`, đảm bảo tính tái lập (Reproducibility) và đa dạng hóa quá trình lấy mẫu.
 - **Trích xuất Feature Importances tổng hợp:**
 
-  $$
+$$
   \text{Importance}(j) = \frac{1}{B} \sum_{b=1}^{B} \text{Importance}_b(j)
-  $$
+$$
 
 ---
 

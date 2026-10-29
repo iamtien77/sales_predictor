@@ -15,7 +15,11 @@
   - `sales_lag_4_weeks`: Doanh thu trễ 4 tuần lịch ($t-4$).
   - `sales_mean_4_weeks`: Doanh thu trung bình trượt 4 tuần gần nhất:
     
-    $$\bar{S}_{4w} = \frac{1}{4} \sum_{k=1}^4 \text{sales}(t-k)$$
+
+$$
+\bar{S}_{4w} = \frac{1}{4} \sum_{k=1}^4 \text{sales}(t-k)
+$$
+
 
   - `sales_std_4_weeks`: Độ biến động doanh thu chuẩn hóa trong cửa sổ 4 tuần.
   - `last_week_units`: Số lượng đơn vị sản phẩm bán được trong tuần liền trước.
@@ -40,7 +44,11 @@
 - `is_holiday_week`: Nhận diện các tuần có ngày lễ quốc gia Brazil (Carnival, Độc lập, Lao động...).
 - Biến đổi tuần hoàn lượng giác:
   
-  $$\text{month\_sin} = \sin\left(\frac{2\pi \times \text{month}}{12}\right), \quad \text{month\_cos} = \cos\left(\frac{2\pi \times \text{month}}{12}\right)$$
+
+$$
+\mathrm{month\_sin} = \sin\left(\frac{2\pi \times \text{month}}{12}\right), \quad \mathrm{month\_cos} = \cos\left(\frac{2\pi \times \text{month}}{12}\right)
+$$
+
 
   Giúp mô hình hiểu được tính liên tục giữa tháng 12 và tháng 1 năm sau.
 

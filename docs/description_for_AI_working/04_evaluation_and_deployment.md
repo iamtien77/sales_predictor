@@ -11,7 +11,11 @@
 ### Bước 1. Quy Trình Nghiệm Thu Độc Lập trên Test Set (293.717 Dòng)
 - Nguyên tắc quy đổi tiền tệ thực tế: Dự báo log của mô hình được chuyển đổi ngược về thang đo BRL và chặn dưới bằng 0:
   
-  $$\hat{y}_{\text{money}} = \max\left(0.0, \exp(\hat{y}) - 1\right) = \max\left(0.0, \text{expm1}(\hat{y})\right)$$
+
+$$
+\hat{y}_{\text{money}} = \max\left(0.0, \exp(\hat{y}) - 1\right) = \max\left(0.0, \text{expm1}(\hat{y})\right)
+$$
+
 
 - Tính toán song song bộ chỉ số khoa học và chỉ số nghiệp vụ bán lẻ:
   1. **MSE (BRL²):** Đo lường hàm mất mát bình phương.
@@ -20,7 +24,11 @@
   4. **$R^2$ Score:** Đo lường tỷ lệ phương sai thực tế giải thích được.
   5. **WAPE (Weighted Absolute Percentage Error):**
      
-     $$\text{WAPE} = \frac{\sum |y_i - \hat{y}_i|}{\sum y_i}$$
+
+$$
+\text{WAPE} = \frac{\sum |y_i - \hat{y}_i|}{\sum y_i}
+$$
+
      
      Khắc phục nhược điểm chia cho 0 của MAPE khi doanh thu thực tế bằng 0 BRL.
   6. **Supply Chain Cost Per Item (BRL):** Ma trận chi phí tổn thất chuỗi cung ứng mô phỏng chi phí lưu kho khi dư hàng (Overstock penalty = 2 BRL) và tổn thất cơ hội khi đứt hàng (Understock penalty = 10 BRL).
@@ -73,7 +81,11 @@
 ### Bước 7. Động Cơ Mô Phỏng Tiếp Thị Kinh Tế Lượng (Marketing Uplift & ROAS Engine)
 - Triển khai trong [`src/deployment/predictor.py`](file:///e:/Hoc_May_Tren_truong/lab_2%20sales_predictor/src/deployment/predictor.py) qua hàm `simulate_marketing_response()`:
   - Ứng dụng hàm bão hòa phi tuyến Log-Response với hệ số co giãn quảng cáo AED:
-    $$\Delta \text{Sales}(S) = S_{\text{baseline}} \times \epsilon \times \ln\left(1 + \frac{S}{S_{\text{ref}}}\right)$$
+
+$$
+\Delta \text{Sales}(S) = S_{\text{baseline}} \times \epsilon \times \ln\left(1 + \frac{S}{S_{\text{ref}}}\right)
+$$
+
   - Kiểm chứng định luật lợi biên giảm dần (Diminishing Marginal Returns): $\Delta S$ ở các mức ngân sách cao tăng chậm dần, ngăn chặn ngoại suy phi thực tế.
   - Cung cấp trọn bộ chỉ số kinh doanh: `Incremental_Sales_BRL`, `Sales_Growth_%`, `ROAS` và `Marketing_ROI_%`.
 
