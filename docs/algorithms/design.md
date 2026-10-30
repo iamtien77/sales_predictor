@@ -12,8 +12,13 @@ Bài toán trọng tâm của hệ thống là **Hồi quy chuỗi thời gian d
 
 - **Đơn vị phân tích (Granularity / Primary Key):** Cặp `(product_id, order_purchase_timestamp)` — đại diện cho từng Sản phẩm – Tuần.
 - **Biến mục tiêu gốc (Raw Target):** Tổng giá trị bán hàng phát sinh trong tuần của sản phẩm:
-  $$s_{p,t} = \sum_{i \in I_{p,t}} \text{price}_i \quad (\text{đơn vị: Brazilian Real - BRL})$$
-  *(Trong đó $I_{p,t}$ là tập hợp các đơn vị sản phẩm $p$ được đặt mua trong tuần $t$; không bao gồm phí vận chuyển `freight_value`).*
+
+$$
+s_{p,t} = \sum_{i \in I_{p,t}} \mathrm{price}_i \quad (\text{đơn vị: Brazilian Real - BRL})
+$$
+
+*(Trong đó $I_{p,t}$ là tập hợp các đơn vị sản phẩm $p$ được đặt mua trong tuần $t$; không bao gồm phí vận chuyển `freight_value`).*
+
 - **Tính chất dữ liệu:** Dữ liệu có tính thưa cực đoan (Zero-Inflation: >90% tuần không phát sinh đơn hàng đối với phần lớn sản phẩm) và phân phối doanh thu dương bị lệch phải nghiêm trọng (Heavy-Tailed Right-Skewed Distribution).
 
 ### 1.2. Phân định phạm vi các luồng chức năng (Functional Scope)
@@ -59,7 +64,11 @@ Mọi quyết định thiết kế kỹ thuật trong hệ thống đều phải
 ### 2.5. Tại sao tối ưu trong không gian Log và nghịch đảo ra BRL?
 - Phân phối doanh số bán hàng trong thương mại điện tử có đuôi dài (Heavy-Tailed). Áp dụng hàm mất mát MSE trực tiếp trên thang đo BRL sẽ khiến các sản phẩm có doanh thu đột biến (outliers) chi phối toàn bộ gradient, làm mô hình mất ổn định.
 - Huấn luyện trên không gian $y = \log(1 + s)$ giúp nén độ lệch phân phối, đưa hàm mất mát về dạng tối ưu đối xứng hơn.
-- **Trade-off cần kiểm soát:** Cực tiểu hóa MSE trên không gian log không đồng nhất với cực tiểu hóa RMSE trên thang tiền tệ BRL. Do đó, mô hình phải được đánh giá và chọn lọc cuối cùng dựa trên sai số thực tế sau khi đã nghịch đảo: $\hat{s} = \max(0, \exp(\hat{y}) - 1)$.
+- **Trade-off cần kiểm soát:** Cực tiểu hóa MSE trên không gian log không đồng nhất với cực tiểu hóa RMSE trên thang tiền tệ BRL. Do đó, mô hình phải được đánh giá và chọn lọc cuối cùng dựa trên sai số thực tế sau khi đã nghịch đảo:
+
+$$
+\hat{s} = \max\left(0.0, \; \exp(\hat{y}) - 1.0\right)
+$$
 
 ---
 
@@ -211,44 +220,106 @@ Toàn bộ các mô hình phải kế thừa từ lớp trừu tượng `BaseEst
 - `predict(X)`: Trả về vector dự báo trong không gian huấn luyện $\hat{y} \in \mathbb{R}^N$.
 
 #### 1. Hệ thống 4 Mô hình Cơ sở (Baselines)
-- **Zero Baseline:** $\hat{y}_i = 0$ với mọi $i$.
-- **Revenue Mean Baseline:** $\hat{y}_i = \log(1 + \bar{s}_{\text{train}})$, trong đó $\bar{s}_{\text{train}} = \frac{1}{N} \sum_{k=1}^N s_k$.
-- **Log Mean Baseline:** $\hat{y}_i = \bar{y}_{\text{train}} = \frac{1}{N} \sum_{k=1}^N y_k$.
-- **Persistence Baseline:** Lấy nguyên giá trị doanh thu tuần trước đã được chuẩn hóa trong ma trận $X$, giải mã về giá trị gốc BRL và chuyển sang nhãn log.
+- **Zero Baseline:** Luôn dự báo bằng 0 trong không gian nhãn cho mọi quan sát:
+
+$$
+\hat{y}_i = 0.0 \quad (\forall i)
+$$
+
+- **Revenue Mean Baseline:** Dự báo bằng giá trị trung bình doanh thu thực tế trên toàn bộ tập huấn luyện, quy đổi sang không gian log:
+
+$$
+\hat{y}_i = \log(1 + \bar{s}_{\mathrm{train}}), \quad \text{với } \bar{s}_{\mathrm{train}} = \frac{1}{N} \sum_{k=1}^N s_k
+$$
+
+- **Log Mean Baseline:** Dự báo bằng trung bình cộng của nhãn log trên tập huấn luyện:
+
+$$
+\hat{y}_i = \bar{y}_{\mathrm{train}} = \frac{1}{N} \sum_{k=1}^N y_k
+$$
+
+- **Persistence Baseline:** Lấy nguyên giá trị doanh thu tuần trước $(t-1)$ từ cột `last_week_sales` làm dự báo cho tuần này:
+
+$$
+\hat{y}_i(t) = \log\left(1 + \mathrm{sales}_i(t-1)\right)
+$$
 
 #### 2. Hồi quy Tuyến tính (Linear Regression with Normal Equation & Ridge Fallback)
 Tìm vector trọng số $w \in \mathbb{R}^{D+1}$ giải bài toán bình phương tối thiểu có điều chuẩn $L_2$:
-$$w = \left( X^T X + \lambda I \right)^{-1} X^T y$$
+
+$$
+w = \left( X^T X + \lambda I \right)^{-1} X^T y
+$$
+
 - **Cơ chế phòng vệ:** Nếu ma trận $X^T X$ suy biến hoặc có định thức gần bằng 0 ($\det \approx 0$), hệ thống tự động bổ sung hệ số điều chuẩn Ridge $\lambda > 0$ hoặc chuyển sang tối ưu bằng Hạ độ dốc (Gradient Descent):
-  $$w^{(t+1)} = w^{(t)} - \eta \cdot \frac{1}{N} X^T (X w^{(t)} - y)$$
+
+$$
+w^{(t+1)} = w^{(t)} - \eta \cdot \frac{1}{N} X^T (X w^{(t)} - y)
+$$
 
 #### 3. Cây Quyết định Hồi quy (Decision Tree Regressor)
 - **Tiêu chuẩn phân nhánh (Splitting Criterion):** Tối đa hóa mức giảm phương sai (Variance Reduction):
-  $$\Delta \text{Var} = \text{Var}(D) - \left( \frac{|D_L|}{|D|} \text{Var}(D_L) + \frac{|D_R|}{|D|} \text{Var}(D_R) \right)$$
+
+$$
+\Delta \mathrm{Var} = \mathrm{Var}(D) - \left( \frac{|D_L|}{|D|} \mathrm{Var}(D_L) + \frac{|D_R|}{|D|} \mathrm{Var}(D_R) \right)
+$$
+
 - **Tối ưu tốc độ huấn luyện (Quantile Split Candidates):** Để xử lý hàng trăm nghìn mẫu dữ liệu, không quét toàn bộ giá trị liên tục mà chọn ra 16 điểm phân vị (Percentiles) trên mỗi đặc trưng làm ngưỡng chia nhị phân.
-- **Giá trị tại nút lá:** Trung bình cộng nhãn của các mẫu rơi vào lá: $\hat{y}_{\text{leaf}} = \frac{1}{|D_{\text{leaf}}|} \sum_{i \in D_{\text{leaf}}} y_i$.
+- **Giá trị tại nút lá:** Trung bình cộng nhãn của các mẫu rơi vào lá:
+
+$$
+\hat{y}_{\mathrm{leaf}} = \frac{1}{|D_{\mathrm{leaf}}|} \sum_{i \in D_{\mathrm{leaf}}} y_i
+$$
 
 #### 4. Rừng Ngẫu Nhiên (Random Forest Regressor)
 - **Kỹ thuật Bagging & Feature Subsampling:** Khởi tạo $B$ cây quyết định con độc lập. Mỗi cây $b$ được huấn luyện trên một tập dữ liệu Bootstrap $D_b$ (lấy mẫu có hoàn lại từ $D$).
 - Tại mỗi node phân nhánh, chỉ xét ngẫu nhiên một tập con đặc trưng có kích thước $m = \sqrt{D}$ hoặc $m = \lfloor D/3 \rfloor$.
 - **Dự báo tổng hợp:** Lấy trung bình cộng dự báo của toàn bộ các cây con:
-  $$\hat{y}(x) = \frac{1}{B} \sum_{b=1}^B \hat{y}_b(x)$$
+
+$$
+\hat{y}(x) = \frac{1}{B} \sum_{b=1}^B \hat{y}_b(x)
+$$
 
 #### 5. Tăng Cường Độ Dốc (Gradient Boosting Regressor)
-- Khởi tạo giá trị cơ sở: $F_0(x) = \arg\min_{\gamma} \sum_{i=1}^N L(y_i, \gamma) = \bar{y}$.
+- Khởi tạo giá trị cơ sở:
+
+$$
+F_0(x) = \arg\min_{\gamma} \sum_{i=1}^N L(y_i, \gamma) = \bar{y}
+$$
+
 - Với mỗi vòng lặp $m = 1, \dots, M$:
   1. Tính phần dư âm (Negative Gradient / Pseudo-Residuals) theo hàm mất mát MSE:
-     $$r_{im} = -\left[ \frac{\partial L(y_i, F(x_i))}{\partial F(x_i)} \right]_{F = F_{m-1}} = y_i - F_{m-1}(x_i)$$
+
+$$
+r_{im} = -\left[ \frac{\partial L(y_i, F(x_i))}{\partial F(x_i)} \right]_{F = F_{m-1}} = y_i - F_{m-1}(x_i)
+$$
+
   2. Huấn luyện một cây hồi quy nông $h_m(x)$ khớp với các phần dư $r_{im}$.
   3. Cập nhật mô hình tổng hợp với hệ số co hẹp tốc độ học $\nu \in (0, 1]$ (Learning Rate Shrinkage):
-     $$F_m(x) = F_{m-1}(x) + \nu \cdot h_m(x)$$
+
+$$
+F_m(x) = F_{m-1}(x) + \nu \cdot h_m(x)
+$$
 
 #### 6. Mô hình Hai Giai Đoạn (Two-Stage Hurdle Regressor)
 Mô hình chuyên biệt xử lý dữ liệu lạm phát số không (Zero-Inflation) bằng cách tách bài toán thành 2 bước xác suất độc lập:
-$$\mathbb{E}[S \mid x] = P(S > 0 \mid x) \times \mathbb{E}[S \mid S > 0, x]$$
-- **Giai đoạn 1 (Occurrence Stage):** Mô hình phân loại nhị phân ước lượng xác suất bán được hàng $\hat{p}(x) = P(s > 0 \mid x)$.
+
+$$
+\mathbb{E}[S \mid x] = P(S > 0 \mid x) \times \mathbb{E}[S \mid S > 0, x]
+$$
+
+- **Giai đoạn 1 (Occurrence Stage):** Mô hình phân loại nhị phân ước lượng xác suất bán được hàng:
+
+$$
+\hat{p}(x) = P(s > 0 \mid x)
+$$
+
 - **Giai đoạn 2 (Severity Stage):** Mô hình hồi quy huấn luyện duy nhất trên tập con các mẫu có doanh số dương ($s > 0$), dự báo mức doanh thu kỳ vọng $\hat{s}_{>0}(x)$.
-- **Dự báo kết hợp:** $\hat{s}_{\text{final}} = \hat{p}(x) \times \hat{s}_{>0}(x)$.
+- **Dự báo kết hợp:**
+
+$$
+\hat{s}_{\mathrm{final}} = \hat{p}(x) \times \hat{s}_{>0}(x)
+$$
 
 ---
 
@@ -271,14 +342,25 @@ $$\mathbb{E}[S \mid x] = P(S > 0 \mid x) \times \mathbb{E}[S \mid S > 0, x]$$
 
 #### 1. Biến mục tiêu (Target Variable Specification)
 Với mỗi sản phẩm $p$ và tuần lịch bắt đầu tại mốc thời gian $t$:
-$$s_{p,t} = \sum_{i \in I} \mathbf{1}(\text{product}_i = p) \cdot \mathbf{1}(t \le \text{purchase}_i < t + 7\text{ ngày}) \cdot \text{price}_i$$
+
+$$
+s_{p,t} = \sum_{i \in I} \mathbf{1}(\mathrm{product}_i = p) \cdot \mathbf{1}(t \le \mathrm{purchase}_i < t + 7\text{ ngày}) \cdot \mathrm{price}_i
+$$
 
 - **Miền giá trị hợp lệ:** $s_{p,t} \in [0, +\infty)$.
 - **Không gian huấn luyện (Training Space):**
-  $$y_{p,t} = \log(1 + s_{p,t})$$
+
+$$
+y_{p,t} = \log(1 + s_{p,t})
+$$
+
 - **Quy tắc giải mã suy luận (Inference Inversion & Clamping Guard):**
-  $$\hat{s}_{p,t} = \max\left(0.0, \; \exp(\hat{y}_{p,t}) - 1.0\right)$$
-  *(Cơ chế kẹp ngưỡng $\max(0, \cdot)$ triệt tiêu hoàn toàn khả năng dự báo doanh thu âm, bảo đảm tính logic kinh tế).*
+
+$$
+\hat{s}_{p,t} = \max\left(0.0, \; \exp(\hat{y}_{p,t}) - 1.0\right)
+$$
+
+*(Cơ chế kẹp ngưỡng $\max(0, \cdot)$ triệt tiêu hoàn toàn khả năng dự báo doanh thu âm, bảo đảm tính logic kinh tế).*
 
 #### 2. Cấu trúc ma trận đặc trưng $X$ (Feature Matrix Contract)
 Ma trận đặc trưng $X$ có kích thước $N \times D$, trong đó mỗi dòng tương ứng với một bản ghi Sản phẩm – Tuần:
