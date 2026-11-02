@@ -245,7 +245,7 @@ Learning rate `nu` và số vòng lặp kiểm soát mức độ cập nhật. M
 **Two-Stage Hurdle** là ứng viên khi dữ liệu có nhiều tuần bằng 0. Nhánh đầu ước lượng xác suất có doanh thu bằng cây học nhãn nhị phân; trung bình nhãn tại lá là xác suất thực nghiệm. Nhánh sau học `log1p(sales)` chỉ trên mẫu dương. Hai nhánh được kết hợp như sau:
 
 ```math
-\hat{s}(x) = \hat{p}(x)\max(0, \operatorname{expm1}(\hat{y}_{pos}(x)))
+\hat{s}(x) = \hat{p}(x)\max(0, \exp(\hat{y}_{pos}(x)) - 1)
 ```
 
 Estimator trả `log1p` của kết quả kết hợp để giữ giao diện chung. Đây là cách kết hợp xác suất với dự báo dương nghịch đảo từ log, không mặc nhiên là kỳ vọng số học của doanh thu. Khi quá ít mẫu dương, cần fallback theo thống kê Train; không có mẫu dương thì dự báo 0. Failure modes cần kiểm tra gồm xác suất chưa được hiệu chỉnh và nhánh dương học thiếu dữ liệu.
@@ -257,13 +257,13 @@ Mọi ứng viên dùng cùng temporal split và feature schema. Tuning giới h
 Metric chính là **Validation RMSE trên BRL**:
 
 ```math
-\operatorname{RMSE} = \sqrt{\frac{1}{N}\sum_{i=1}^{N}(s_i-\hat{s}_i)^2}
+\mathrm{RMSE} = \sqrt{\frac{1}{N}\sum_{i=1}^{N}(s_i-\hat{s}_i)^2}
 ```
 
 Trước khi tính metrics, chuyển dự báo về BRL:
 
 ```math
-\hat{s}_i = \max(0, \operatorname{expm1}(\hat{y}_i))
+\hat{s}_i = \max(0, \exp(\hat{y}_i) - 1)
 ```
 
 Cần kiểm tra giá trị hữu hạn và kiểm soát overflow khi nghịch đảo. Bất kỳ ngưỡng kẹp nào cũng phải dựa trên quy tắc đã chốt từ Train, lưu trong metadata và áp dụng nhất quán. Không điều chỉnh ngưỡng theo kết quả Test.
