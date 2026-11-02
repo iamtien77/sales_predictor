@@ -1,14 +1,14 @@
 ﻿# Thiết kế Sales Predictor theo 5W1H và Target Structure
 
-Tài liệu trình bày cách thiết kế hệ thống dự báo doanh thu sản phẩm theo tuần, từ việc xác định bài toán đến tổ chức các module và đánh giá mô hình. Người đọc chính là nhóm phát triển và giảng viên đánh giá đồ án.
+Tài liệu trình bày cách thiết kế dự án dự báo doanh thu sản phẩm theo tuần, từ việc xác định bài toán đến tổ chức các module và đánh giá mô hình. Người đọc chính là nhóm phát triển và giảng viên đánh giá đồ án.
 
 Nội dung được viết theo góc nhìn trước khi triển khai: mỗi lựa chọn cần có lý do, đầu vào và đầu ra rõ ràng, cùng cách kiểm tra kết quả. Cấu trúc đề xuất bám theo cách tổ chức của dự án để thuận tiện đối chiếu, nhưng không có nghĩa mọi yêu cầu dưới đây đã được đáp ứng. Kết quả thực nghiệm được trình bày riêng trong [tổng quan thuật toán](README.md).
 
-## 1. What — Hệ thống cần giải quyết bài toán gì?
+## 1. What — Dự án cần giải quyết bài toán gì?
 
 ### 1.1. Bài toán và đầu ra
 
-Hệ thống cần dự báo **tổng doanh thu trong tuần tiếp theo của từng sản phẩm đã có lịch sử bán hàng**. Đây là bài toán time-series regression trên bảng sản phẩm–tuần (Product–Week Panel).
+Dự án cần dự báo **tổng doanh thu trong tuần tiếp theo của từng sản phẩm đã có lịch sử bán hàng**. Đây là bài toán time-series regression trên bảng sản phẩm–tuần (Product–Week Panel).
 
 Mỗi dòng dữ liệu tương ứng với một sản phẩm `p` và một tuần bắt đầu tại `t`. Khóa của dòng là `(product_id, order_purchase_timestamp)`, trong đó `order_purchase_timestamp` được quy về ngày thứ Hai đầu tuần, không còn là thời điểm mua của một giao dịch riêng lẻ.
 
@@ -34,6 +34,41 @@ s_{p,t} = \sum_{i \in I_{p,t}} \mathrm{price}_i
 
 Các luồng có target hoặc giả định khác nhau phải được đánh giá riêng. Kết quả mô phỏng marketing không được dùng làm bằng chứng về độ chính xác của weekly forecast.
 
+### 1.3. Dữ liệu đầu vào
+
+Dự án sử dụng bộ dữ liệu Brazilian E-Commerce của Olist, lưu dưới dạng CSV trong `data/raw/`. Dữ liệu gốc là các bảng quan hệ: một đơn hàng có thể có nhiều item, một sản phẩm xuất hiện trong nhiều đơn và một khách hàng có thể mua nhiều lần. Vì vậy, một dòng item không đồng nghĩa với một đơn hàng hay một dòng sản phẩm–tuần.
+
+#### Các bảng nguồn cần dùng
+
+| File | Đơn vị một dòng và khóa | Các cột sử dụng | Vai trò |
+| --- | --- | --- | --- |
+| `olist_order_items_dataset.csv` | Một item trong đơn; khóa `(order_id, order_item_id)` | `order_id`, `order_item_id`, `product_id`, `price`, `freight_value` | Xác định sản phẩm, doanh thu và số item bán; phí vận chuyển được giữ riêng, không cộng vào target |
+| `olist_orders_dataset.csv` | Một đơn hàng; khóa `order_id` | `order_id`, `customer_id`, `order_purchase_timestamp`, `order_status` | Cung cấp ngày mua, người mua và trạng thái đơn |
+| `olist_products_dataset.csv` | Một sản phẩm; khóa `product_id` | `product_id`, `product_category_name`; với cold-start thêm `product_weight_g`, `product_photos_qty`, `product_name_lenght`, `product_description_lenght` | Cung cấp danh mục và thuộc tính nội dung; giữ nguyên cách viết tên cột của nguồn |
+| `olist_customers_dataset.csv` | Một mã khách gắn với đơn; khóa `customer_id` | `customer_id`, `customer_unique_id`, `customer_state` | Nối đơn với thông tin khách; dùng `customer_unique_id` để nhận diện người mua qua nhiều đơn |
+| `olist_order_reviews_dataset.csv` | Một bản ghi đánh giá; cần kiểm tra trùng và quan hệ theo `order_id` | `review_id`, `order_id`, `review_score`, `review_answer_timestamp` | Tạo lịch sử đánh giá khả dụng trước tuần dự báo |
+| `product_category_name_translation.csv` | Một danh mục gốc; khóa `product_category_name` | `product_category_name`, `product_category_name_english` | Bảng tra tên danh mục; hỗ trợ diễn giải, không quyết định target |
+
+Các bảng payments, sellers và geolocation có thể có trong thư mục dữ liệu nhưng không phải đầu vào bắt buộc của thiết kế weekly forecast này. Không cần ghép thêm bảng chỉ vì nguồn có sẵn.
+
+#### Cách liên kết và đầu vào của pipeline
+
+Lấy bảng item làm gốc, nối orders qua `order_id`, products qua `product_id`, rồi customers qua `customer_id`. Các phép nối này cần quan hệ many-to-one từ item sang bảng tra tương ứng. Bảng dịch danh mục được nối qua `product_category_name` nếu sử dụng tên tiếng Anh.
+
+Review được xử lý thành lịch sử riêng theo sản phẩm và thời điểm phản hồi, sau đó ghép vào tuần dự báo. Không nối trực tiếp mọi dòng review vào item để tính doanh thu, vì một đơn có nhiều review có thể làm nhân bản item và tăng target sai.
+
+Trong dự án hiện tại, `loader.py` nhận file `olist_merged_sales_dataset.csv` đã hợp nhất; đây là dữ liệu trung gian dẫn xuất từ các bảng nguồn, không phải một nguồn Olist độc lập. Weekly builder tối thiểu cần `product_id`, `price` và `order_purchase_timestamp`. Để kiểm tra trùng item và tạo đầy đủ features, đầu vào còn cần khóa item, trạng thái đơn, danh mục, thông tin khách và bảng review như mô tả ở trên. Không dùng các cột nhân khẩu học hoặc marketing sinh mô phỏng trong file hợp nhất làm dữ liệu thực cho weekly forecast.
+
+#### Kiểu dữ liệu và điều kiện hợp lệ
+
+- Các ID được đọc như mã định danh, không đưa vào mô hình như đại lượng số. Timestamp phải chuyển được sang datetime và dùng cùng một quy ước thời gian; nguồn không có timezone thì không tự khẳng định là UTC.
+- `price` là giá của một item, đơn vị BRL. Weekly builder giữ giá hữu hạn và lớn hơn 0; dòng thiếu sản phẩm, giá hoặc ngày mua bị loại và cần được thống kê. Nhãn tuần bằng 0 được tạo khi dựng panel, không phải từ item có giá bằng 0.
+- Nếu có `order_status`, luồng hiện tại giữ `delivered`; giới hạn của việc lọc trạng thái cuối kỳ được giải thích ở mục 4.3. Phải kiểm tra trùng `(order_id, order_item_id)` trước khi cộng doanh thu.
+- `review_score` hợp lệ nằm trong khoảng 1–5; phản hồi chỉ được dùng sau `review_answer_timestamp`. Thiếu metadata phải được ghi nhận để xử lý trong preprocessing, không tự tạo thông tin thực không có trong nguồn.
+- Báo cáo đầu vào cần ghi số dòng, số sản phẩm, số đơn, khoảng ngày quan sát, tỷ lệ thiếu và số dòng bị loại sau làm sạch. Các con số phải lấy từ snapshot sử dụng, không ghi cố định từ một lần chạy khác.
+
+Dữ liệu đưa vào estimator là ma trận số `X` sau preprocessing và vector `y = log1p(sales)`, không phải các bảng CSV gốc. Khi dự báo tuần mới, cần mã sản phẩm, tuần đích và lịch sử khả dụng trước tuần đó để tạo cùng schema; không yêu cầu người dùng nhập doanh thu thực của tuần cần dự báo. Đầu vào bổ sung cho listing cold-start và mô phỏng được tách riêng tại mục 6.5.
+
 ## 2. Why — Vì sao chọn hướng thiết kế này?
 
 ### 2.1. Giữ cả những tuần không bán được hàng
@@ -48,7 +83,7 @@ Cách làm này vẫn có giới hạn: không có giao dịch chưa chứng min
 
 Bốn baseline gồm Zero, Revenue Mean, Log Mean và Previous Week tạo các mốc đối chiếu dễ giải thích. Một mô hình phức tạp chỉ đáng chọn nếu cải thiện tiêu chí đã thống nhất và chi phí tính toán phù hợp.
 
-Nếu không có ứng viên nào vượt baseline tốt nhất trên Validation, hệ thống cần giữ baseline làm lựa chọn chính và báo cáo kết quả đó. Không bắt buộc phải chọn một mô hình phức tạp để hoàn thành đồ án.
+Nếu không có ứng viên nào vượt baseline tốt nhất trên Validation, dự án cần giữ baseline làm lựa chọn chính và báo cáo kết quả đó. Không bắt buộc phải chọn một mô hình phức tạp để hoàn thành đồ án.
 
 ### 2.3. Cài đặt From-Scratch để giải thích được thuật toán
 
@@ -58,7 +93,7 @@ Mô hình, preprocessing và metrics được tự cài đặt nhằm làm rõ c
 
 ### 2.4. Chia theo thời gian và học trên log doanh thu
 
-Temporal split giữ thứ tự quá khứ–tương lai, phù hợp với cách hệ thống được sử dụng. Preprocessing chỉ fit trên Train để tránh dùng thống kê của giai đoạn đánh giá.
+Temporal split giữ thứ tự quá khứ–tương lai, phù hợp với mục tiêu dự báo tuần tiếp theo của dự án. Preprocessing chỉ fit trên Train để tránh dùng thống kê của giai đoạn đánh giá.
 
 Doanh thu thường lệch phải nên hướng thiết kế ban đầu là học trên:
 
@@ -118,13 +153,13 @@ Nguyên tắc thiết kế là giữ Test độc lập trong quá trình lựa c
 
 ## 5. Where — Dữ liệu, logic và kết quả nằm ở đâu?
 
-Hệ thống chạy ngoại tuyến để phục vụ đồ án: nạp dữ liệu, tạo features, huấn luyện, đánh giá rồi lưu artifact cho CLI hoặc giao diện demo. Chưa đặt yêu cầu về hạ tầng phục vụ thời gian thực.
+Dự án được thực hiện ngoại tuyến: nạp dữ liệu, tạo features, huấn luyện, đánh giá rồi lưu artifact cho CLI hoặc giao diện demo. Chưa đặt yêu cầu về hạ tầng phục vụ thời gian thực.
 
 Các thành phần được chia thành bốn lớp: dữ liệu, mô hình, đánh giá và suy luận. `main.py` điều phối quá trình; `app.py` nhận đầu vào và hiển thị kết quả. Logic tạo features và tính dự báo cần nằm trong module dùng chung để training và demo không áp dụng hai cách xử lý khác nhau.
 
 Dữ liệu nguồn nằm trong `data/raw/`; dữ liệu xử lý và cache nằm trong `data/processed/`. Metrics, hình vẽ và mô hình đã lưu được tổ chức trong `results/`. Cây thư mục và trách nhiệm từng module được trình bày ở phần Target Structure.
 
-## 6. How — Hệ thống xử lý và học như thế nào?
+## 6. How — Dự án xử lý dữ liệu và huấn luyện mô hình như thế nào?
 
 ### 6.1. Luồng xử lý chính
 
@@ -241,7 +276,7 @@ Phân tích lỗi cần tách tuần bằng 0 và tuần dương, nhóm danh m�
 
 Cold-start proxy dùng thuộc tính sản phẩm và giá giao dịch đầu đã biết để ước lượng doanh thu bảy ngày từ giao dịch đó. Cần so sánh ít nhất với trung vị danh mục và baseline `sales = first_price`, vì target đã chứa giao dịch đầu. Loại cửa sổ quan sát chưa đủ bảy ngày và purge các nhãn Train vượt ranh giới đánh giá. Không dùng Test để chọn mô hình.
 
-Listing cold-start cần catalog có `listing_date`, `listed_price`, thời điểm thuộc tính khả dụng và cả sản phẩm chưa bán. Nhãn 0 chỉ được gán khi cửa sổ bảy ngày đã được quan sát đầy đủ. Hợp đồng dữ liệu được mô tả riêng tại [listing_data_contract.md](listing_data_contract.md); thiếu nguồn này thì chưa thể kiểm chứng dự báo trước lần bán đầu.
+Listing cold-start cần catalog có `listing_date`, `listed_price`, thời điểm thuộc tính khả dụng và cả sản phẩm chưa bán. Nhãn 0 chỉ được gán khi cửa sổ bảy ngày đã được quan sát đầy đủ. Các yêu cầu về dữ liệu được mô tả riêng tại [listing_data_contract.md](listing_data_contract.md); thiếu nguồn này thì chưa thể kiểm chứng dự báo trước lần bán đầu.
 
 Marketing scenario có thể dùng hàm phản hồi lợi suất giảm dần:
 
@@ -251,7 +286,7 @@ Marketing scenario có thể dùng hàm phản hồi lợi suất giảm dần:
 
 Với ngân sách `a >= 0`, `S_ref > 0` và hệ số `beta >= 0`, doanh thu kịch bản bằng doanh thu nền nhân uplift. Các hệ số là giả định nếu chưa có dữ liệu chiến dịch để ước lượng. Discount scenario cũng cần tách giá giảm và sản lượng giả định, không suy ra tăng nhu cầu chỉ từ mức giảm giá.
 
-## 7. Target Structure — Cấu trúc mục tiêu và hợp đồng giữa các module
+## 7. Target Structure — Cấu trúc dự án và cách các module trao đổi dữ liệu
 
 ### 7.1. Cây thư mục đề xuất
 
@@ -300,7 +335,7 @@ sales_predictor/
 └── app.py                          # Giao diện demo
 ```
 
-### 7.2. Hợp đồng Input/Output
+### 7.2. Dữ liệu đầu vào và đầu ra giữa các bước
 
 | Ranh giới | Input | Output | Điều kiện cần giữ |
 | --- | --- | --- | --- |
@@ -328,4 +363,4 @@ Artifact của weekly forecast và cold-start được quản lý riêng vì kh�
 6. **Suy luận nhất quán:** artifact tải lại cho dự báo tương đương trong sai số số học cho phép; đầu ra không âm và hữu hạn; trường hợp sai schema có thông báo rõ ràng.
 7. **Báo cáo đúng giới hạn:** Test không dùng để tuning; RMSE tốt hơn chưa chứng minh lợi ích vận hành. Proxy sau giao dịch đầu và mô phỏng theo giả định phải được phân biệt với dự báo trước bán và hiệu quả nhân quả.
 
-Các điều kiện này là mục tiêu cần kiểm tra khi triển khai. Tài liệu thiết kế không thay thế báo cáo thực nghiệm hay xác nhận hệ thống đã sẵn sàng vận hành.
+Các điều kiện này là mục tiêu cần kiểm tra khi triển khai. Tài liệu thiết kế không thay thế báo cáo thực nghiệm hay xác nhận mô hình đã phù hợp để sử dụng thực tế.
