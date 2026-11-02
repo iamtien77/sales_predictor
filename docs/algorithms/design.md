@@ -2,7 +2,7 @@
 
 Tài liệu trình bày cách thiết kế dự án dự báo doanh thu sản phẩm theo tuần, từ việc xác định bài toán đến tổ chức các module và đánh giá mô hình. Người đọc chính là nhóm phát triển và giảng viên đánh giá đồ án.
 
-Nội dung được viết theo góc nhìn trước khi triển khai: mỗi lựa chọn cần có lý do, đầu vào và đầu ra rõ ràng, cùng cách kiểm tra kết quả. Cấu trúc đề xuất bám theo cách tổ chức của dự án để thuận tiện đối chiếu, nhưng không có nghĩa mọi yêu cầu dưới đây đã được đáp ứng. Kết quả thực nghiệm được trình bày riêng trong [tổng quan thuật toán](README.md).
+Bản đặc tả xác định phạm vi bài toán, dữ liệu đầu vào, cách xử lý, thuật toán, cấu trúc mã nguồn và tiêu chí đánh giá. Các lựa chọn kỹ thuật được trình bày cùng lý do và giới hạn áp dụng. Kết quả thực nghiệm được trình bày riêng trong [tổng quan thuật toán](README.md).
 
 ## 1. What — Dự án cần giải quyết bài toán gì?
 
@@ -290,7 +290,7 @@ Với ngân sách `a >= 0`, `S_ref > 0` và hệ số `beta >= 0`, doanh thu k�
 
 ### 7.1. Cây thư mục đề xuất
 
-Cây dưới đây mô tả cách tổ chức mục tiêu, bám theo tên module của dự án. Đây là bản đồ trách nhiệm, không phải yêu cầu tạo thêm thư mục hay thay đổi code trong lần chỉnh tài liệu này.
+Dự án được tổ chức theo bốn nhóm chức năng: xử lý dữ liệu, xây dựng mô hình, đánh giá và dự báo. Cấu trúc thư mục dưới đây xác định vị trí và nhiệm vụ của từng module; `main.py` điều phối quy trình thực nghiệm, còn `app.py` cung cấp giao diện demo.
 
 ```text
 sales_predictor/
