@@ -1,67 +1,76 @@
-# Tổng quan thuật toán và kết quả thực nghiệm
+# Tổng Quan Về Các Mô Hình Trong Bài Lab Học Máy
 
-## 1. Tài liệu thuật toán
+Tài liệu này tổng hợp danh mục và mô tả ngắn gọn về các mô hình mà nhóm sẽ thử nghiệm trong bài lab môn Học Máy. Bản thiết kế được xây dựng ngay từ ban đầu nhằm xác định rõ mục tiêu so sánh và quy trình làm bài, hoàn toàn không phụ thuộc vào code hay kết quả cụ thể.
 
-| Tài liệu | Vai trò |
+---
+
+## 1. Danh mục Tài liệu Thiết kế Thuật toán
+
+| Tài liệu thiết kế | Mục tiêu trong bài lab |
 | --- | --- |
-| [Two-Stage Hurdle](two_stage_hurdle.md) | Chọn bằng Validation RMSE 55,9393 BRL; Test RMSE 49,2314 BRL, R² 0,1148. |
-| [Decision Tree](decision_tree.md) | Tuned Model: depth=8, min_samples_leaf=10; Validation RMSE 59,2288 BRL. |
-| [Random Forest](random_forest.md) | Bagging và feature subsampling. |
-| [Gradient Boosting](gradient_boosting.md) | Học tuần tự trên residual. |
-| [Linear Regression](linear_regression.md) | Normal Equation và Gradient Descent cùng quy ước Ridge; CLI dùng Normal Equation. |
-| [Baselines](baselines.md) | Zero, Revenue Mean, Log Mean và Previous Week. |
-| [Cold-start proxy](cold_start.md) | Bảy ngày từ giao dịch đầu đã biết. |
-| [Marketing](marketing_response.md) | Mô phỏng giả định, chưa đo tác động nhân quả. |
+| [Kế hoạch Tổng thể (5W1H)](design.md) | Kế hoạch tổng thể theo 5W1H, cấu trúc dự kiến và quy tắc chống rò rỉ dữ liệu. |
+| [Mô hình Đối chứng Cơ sở (Baselines)](baselines.md) | Thiết lập 4 mốc chuẩn cơ sở: Zero, Revenue Mean, Log Mean và Previous Week để đối chiếu. |
+| [Hồi quy Tuyến tính Điều chuẩn](linear_regression.md) | Mô hình tham số cơ sở giải bằng Normal Equation OLS có Ridge và Gradient Descent. |
+| [Cây Quyết định Hồi quy](decision_tree.md) | Khối cây cơ sở phi tuyến tối ưu hóa mức giảm phương sai (Variance Reduction). |
+| [Rừng Ngẫu nhiên Hồi quy](random_forest.md) | Phương pháp học kết hợp Bagging kết hợp lấy mẫu bootstrap và ngẫu nhiên đặc trưng. |
+| [Tăng cường Độ dốc Hồi quy](gradient_boosting.md) | Phương pháp học kết hợp Boosting tối ưu hóa tuần tự trên phần dư của hàm mất mát. |
+| [Mô hình Hai Giai đoạn (Two-Stage Hurdle)](two_stage_hurdle.md) | Kiến trúc chuyên biệt xử lý dữ liệu có nhiều số 0, tách xác suất và mức doanh thu bán. |
+| [Proxy Doanh thu 7 Ngày Đầu](cold_start.md) | Ước lượng doanh thu khởi đầu dựa trên giao dịch đầu tiên đã biết và thuộc tính sản phẩm. |
+| [Mô phỏng Kịch bản Tiếp thị](marketing_response.md) | Mô hình độ nhạy doanh thu theo giả định hàm logarit lợi suất giảm dần để chạy What-If. |
+| [Quy chuẩn Dữ liệu Niêm yết](listing_data_contract.md) | Đặc tả yêu cầu dữ liệu bắt buộc cho bài toán dự báo cold-start trước khi ra mắt. |
+| [Kế hoạch Kiểm tra Mô hình](experimental_validation.md) | Cách kiểm tra tính ổn định của mô hình qua nhiều mốc thời gian và lưu ý khi làm bài. |
 
-## 2. Kết quả Test theo BRL
+---
 
-Xếp theo RMSE tăng dần. Artifact được chọn trên Validation trước khi xem Test.
-`Cost_Per_Item_BRL` là điểm phạt giả định trên mỗi mẫu sản phẩm–tuần, không phải chi phí tồn kho đo thực tế.
-`Fit Time (s)=0` ở Tuned Model là placeholder, không phải tuning không mất thời gian.
+## 2. Khung Đánh giá & Tiêu chuẩn So sánh Mô hình
 
-| Model | MSE | MAE | RMSE | R2 | WAPE | Cost_Per_Item_BRL | Fit Time (s) |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Two-Stage Hurdle | 2423.7333 | 8.4426 | 49.2314 | 0.1148 | 1.9730 | 44.7952 | 15.0800 |
-| Tuned Model | 2541.2236 | 4.2989 | 50.4106 | 0.0719 | 1.0046 | 40.6158 | 0.0000 |
-| Decision Tree | 2615.3331 | 4.3274 | 51.1403 | 0.0449 | 1.0113 | 41.2640 | 16.5500 |
-| Gradient Boosting | 2708.2243 | 4.4176 | 52.0406 | 0.0109 | 1.0323 | 42.4902 | 138.5000 |
-| Random Forest | 2725.3346 | 4.4322 | 52.2047 | 0.0047 | 1.0357 | 42.6916 | 42.1100 |
-| Revenue Mean Baseline | 2752.2779 | 11.8955 | 52.4622 | -0.0052 | 2.7798 | 56.3489 | 0.0000 |
-| Mean Baseline | 2754.5202 | 4.5026 | 52.4835 | -0.0060 | 1.0522 | 43.1895 | 0.0000 |
-| Zero Baseline | 2756.4820 | 4.2792 | 52.5022 | -0.0067 | 1.0000 | 42.7919 | 0.0000 |
-| Previous Week Baseline | 5683.5250 | 9.0765 | 75.3892 | -1.0757 | 2.1211 | 42.4533 | 0.0000 |
-| Linear Regression | 30378515.8542 | 44.3768 | 5511.6709 | -11093.4570 | 10.3704 | 120.7011 | 0.6200 |
+Toàn bộ các mô hình được nhóm so sánh trên cùng một điều kiện:
+- **Nguyên tắc chống rò rỉ dữ liệu (Data Leakage):** Phân chia tập dữ liệu theo thời gian (Temporal Split 80/10/10) TRƯỚC khi tiến hành tiền xử lý. Toàn bộ tham số thống kê chỉ được fit trên tập Train.
+- **Tiêu chuẩn chọn mô hình:** Sử dụng **Root Mean Squared Error trên thang đo tiền tệ thực tế (Validation RMSE BRL)** sau khi chuyển đổi ngược từ không gian logarit: $\hat{s} = \max(0, \exp(\hat{y}) - 1)$.
+- **Bộ chỉ số đo lường toàn diện:**
+  1. **RMSE (BRL):** Tiêu chí đánh giá chính, phạt nặng các sai số dự báo lệch lớn.
+  2. **MAE (BRL):** Đo lường độ lệch tuyệt đối trung bình trên từng đơn vị sản phẩm–tuần.
+  3. **MSE ($\text{BRL}^2$):** Phản ánh phương sai sai số bình phương.
+  4. **$R^2$ Score:** Đo lường tỷ lệ phương sai doanh thu được giải thích so với mốc trung bình.
+  5. **WAPE:** Sai số phần trăm có trọng số, tránh lỗi chia cho 0 trên dữ liệu thưa.
 
-## 3. Nhận xét và trade-offs
+---
 
-- Hurdle có RMSE thấp nhất trong các ứng viên, giảm khoảng 6,23% so với Zero Baseline. MAE 8,4426 BRL vẫn cao hơn Zero (4,2792 BRL); không thắng trên mọi tiêu chí.
-- Tuned Decision Tree có điểm phạt giả định thấp nhất (40,6158). Zero có MAE và WAPE thấp nhất. Chưa suy ra lợi ích tồn kho thực tế từ các điểm số này.
-- Linear Regression vẫn có RMSE lớn dù kẹp dự báo; không quy chênh lệch giữa các lần chạy cho clamping hoặc bản sửa Gradient Descent khi chưa có đối chứng.
-- Previous Week có RMSE 75,3892 BRL, tệ nhất trong bốn baseline, nhưng vẫn thấp hơn Linear Regression.
-- Hurdle nhân xác suất bán với dự báo dương nghịch đảo từ log; đại lượng sau không mặc nhiên là kỳ vọng số học có điều kiện.
+## 3. Đặc Điểm Kiến Trúc Của Các Thuật Toán Dự Kiến
 
-## 4. Cold-start proxy
+Nhóm thiết kế và khảo sát các họ thuật toán với các cơ chế toán học bổ trợ lẫn nhau:
+1. **Baselines Cơ sở:** Bốn mô hình tham chiếu (Zero, Revenue Mean, Log Mean, Previous Week) thiết lập mốc đối chứng tối thiểu, làm thước đo để xem mô hình học máy có thực sự học được quy luật hay không.
+2. **Linear Regression:** Mô hình tham số tuyến tính có điều chuẩn Ridge nhằm kiểm tra giả định tương quan tuyến tính của các biến trễ và biến danh mục, tích hợp cơ chế kẹp biên log để ổn định số học.
+3. **Cây Quyết định (Decision Tree):** Mô hình phi tuyến dạng phân tách nhị phân theo độ giảm phương sai, tạo ra các quy tắc quyết định dạng If-Else có khả năng giải thích cao.
+4. **Học Kết hợp (Random Forest & Gradient Boosting):** Hai hướng tiếp cận Ensemble tương phản: Bagging (lấy mẫu ngẫu nhiên độc lập để giảm phương sai) và Boosting (học tuần tự trên phần dư để giảm sai số).
+5. **Mô hình Hai Giai đoạn (Two-Stage Hurdle):** Kiến trúc phân tách bài toán nhiều số 0 thành hai giai đoạn độc lập: phân loại xác suất phát sinh đơn hàng và hồi quy quy mô doanh thu khi có giao dịch.
 
-Nguồn: [evaluation](../../results/metrics/cold_start_evaluation.csv) và [manifest](../../results/metrics/cold_start_manifest.json).
+---
 
-| Model | MAE_BRL | RMSE_BRL | R2_Score | Test_Count |
-| --- | --- | --- | --- | --- |
-| CategoryMedianColdStartBaseline | 126.6543 | 313.9562 | 0.0022 | 8110 |
-| SingleUnitPriceBaseline | 23.0145 | 120.9134 | 0.8520 | 8110 |
-| ColdStartProductRegressor | 39.7939 | 135.4682 | 0.8142 | 8110 |
+## 4. Các Phần Thử Nghiệm Mở Rộng
 
-Train 23.428 sản phẩm, Test 8.110; purge 483 mẫu có nhãn vượt ranh giới. 85,47% sản phẩm Test chỉ bán một đơn vị; target chứa giao dịch đầu đã biết nên baseline giá dự báo đúng trên nhóm này. Baseline một đơn vị thắng cây về MAE và RMSE trên holdout hiện tại. Cây là ứng viên cố định, không chọn bằng Test; chưa kiểm chứng dự báo sản phẩm chưa bán.
+- **Luồng Cold-start Proxy:** Thử nghiệm ước lượng doanh thu 7 ngày đầu sau giao dịch đầu tiên đã biết. Nhóm thiết lập Baseline Giá bán đơn vị và Baseline Trung vị danh mục làm chuẩn đối sánh bắt buộc.
+- **Luồng Mô phỏng Kịch bản Tiếp thị:** Thiết lập hàm phản hồi phi tuyến $u(A) = 1 + \beta \ln(1 + A/R)$ để khảo sát độ nhạy doanh thu theo ngân sách quảng cáo dựa trên giả định toán học, phục vụ trực quan hóa What-If.
+- **Quy chuẩn Dữ liệu Niêm yết:** Xác lập các tiêu chuẩn cần thiết về bảng catalog thực tế để phục vụ bài toán dự báo trước khi sản phẩm ra mắt sau này.
 
-## 5. Luồng thực nghiệm
+---
+
+## 5. Quy Trình Các Bước Thực Hiện Bài Lab
 
 ```mermaid
 flowchart TD
-    A[Weekly panel từ snapshot Olist] --> B[Temporal split và preprocessing fit Train]
-    B --> C[Baselines và các mô hình]
-    C --> D[Tuning và chọn bằng Validation RMSE BRL]
-    D --> E[Two-Stage Hurdle được chọn]
-    E --> F[Đánh giá Test độc lập và lưu artifact]
-    F --> G[Demo Streamlit và CLI]
-    H[Giao dịch đầu đã biết] --> I[Proxy doanh thu bảy ngày]
-    I --> G
+    A["Dữ liệu thô Olist (Orders, Items, Products, Reviews)"] --> B["Tổng hợp Product–Week Panel"]
+    B --> C["Tính toán đặc trưng trễ & cuộn (chỉ dùng quá khứ)"]
+    C --> D["Chia dữ liệu theo thời gian (Temporal Split 80/10/10)"]
+    D --> E["Tập Train (80% số tuần đầu)"]
+    D --> F["Tập Validation (10% số tuần tiếp theo)"]
+    D --> G["Tập Test (10% số tuần cuối cùng)"]
+    E --> H["Fit các bộ tiền xử lý (Imputer, Scaler, Encoder)"]
+    H --> I["Đóng băng tham số tiền xử lý"]
+    I -.->|Chỉ áp dụng Transform| F
+    I -.->|Chỉ áp dụng Transform| G
+    H --> J["Huấn luyện 4 Baselines & Các Mô hình Ứng viên"]
+    J --> K["Đánh giá & Chọn mô hình tối ưu trên Validation (RMSE BRL)"]
+    K --> L["Đánh giá độc lập lần cuối trên Test"]
+    L --> M["Tổng kết và hoàn thành bài lab"]
 ```

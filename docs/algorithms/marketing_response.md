@@ -1,100 +1,106 @@
 # 📢 Mô Hình Phản Hồi Tiếp Thị Phi Tuyến (Marketing Diminishing Returns Response Model)
 
-> **Vai trò:** Mô phỏng độ nhạy doanh thu theo giả định ngân sách; Olist không có dữ liệu chiến dịch để ước lượng tác động nhân quả.
-> **Implementation:** [simulate_marketing_response và predict_scenario_marketing_campaign](../../src/deployment/predictor.py).
-> **Giới hạn:** Tên API `calibrated_diminishing_returns` được giữ để tương thích; tên này không chứng minh hệ số đã được hiệu chuẩn.
+> **Vị trí trong bài lab:** Phần mô phỏng kịch bản tiếp thị, được nhóm thiết kế nhằm khảo sát độ nhạy của doanh thu khi thay đổi mức ngân sách quảng cáo.
+> **Lưu ý:** Đây chỉ là phần mô phỏng What-If bằng công thức toán giả định để quan sát xu hướng, không phải mô hình học từ dữ liệu thật vì Olist không có số liệu quảng cáo.
 
-## 1. Purpose (Mục đích & Động lực Kinh tế Lượng)
+---
 
+## 1. Purpose (Mục đích & Ý nghĩa bài toán)
 
+### 1.1. Thách thức dữ liệu thực tế
+Trong thực tế, việc ước lượng tác động của quảng cáo đến doanh số là một nhu cầu quen thuộc. Tuy nhiên, dữ liệu Olist chỉ lưu lịch sử đơn hàng, hoàn toàn không có số liệu về chi phí tiếp thị, lượt hiển thị hay lượt nhấp chuột của từng sản phẩm. Do đó, nhóm không thể huấn luyện một mô hình học máy để học tác động nhân quả từ dữ liệu này.
 
-### 1.1. Thách thức Dữ liệu Thực tế
+### 1.2. Hướng tiếp cận: Mô hình phản hồi theo quy luật lợi suất giảm dần
+Để phục vụ việc thử nghiệm kịch bản giả định, nhóm chọn mô phỏng theo quy luật **Lợi suất giảm dần (Diminishing Marginal Returns)**:
+- **Chế độ cơ sở (Baseline Only):** Giữ nguyên mức doanh thu được dự báo từ mô hình tuần; không giả định thêm mức tăng trưởng nào.
+- **Chế độ phản hồi giảm biên (Calibrated Diminishing Returns):** Dùng hàm logarit để mô phỏng mức tăng trưởng doanh thu khi rót thêm ngân sách, với hệ số phản hồi $\beta$ và mức ngân sách chuẩn $R$ được đặt trước theo giả định.
 
-Đề bài yêu cầu các kịch bản marketing, nhưng Olist không có lịch sử chi tiêu, impressions hoặc clicks theo sản phẩm. Vì vậy, không thể xác nhận mức tăng doanh thu do quảng cáo từ bộ dữ liệu hiện tại. Mô phỏng này phục vụ khảo sát giả định, chưa đủ để khuyến nghị ngân sách thực tế.
-
-### 1.2. Giải pháp: Mô hình Phản hồi Bão hòa Ngân sách Chuẩn tắc
-
-Có hai chế độ:
-- `baseline_only` (mặc định): giữ doanh thu cơ sở; Incremental Sales, Growth, ROAS và ROI là `NaN`.
-- `calibrated_diminishing_returns`: dùng hàm log với `elasticity=0.15` và `reference_spend=100.0` mặc định. Đây là tham số giả định, không phải hệ số đã fit hoặc benchmark ngành.
-
-Hàm có lợi biên giảm dần, nhưng không có trần bão hòa hữu hạn. Các tiêu đề dùng từ “bão hòa” được hiểu theo nghĩa giảm lợi biên trong tài liệu này.
+---
 
 ## 2. Mathematical Formulation (Cơ sở Toán học & Công thức)
 
-
-
-### 2.1. Hàm Tăng Trưởng Phản Hồi Tiếp Thị (Log-Response Uplift)
-
-Với ngân sách $A$, mức chi tham chiếu $R$ và hệ số giả định $\beta$:
+### 2.1. Hàm tăng trưởng theo ngân sách (Log-Response Uplift)
+Với ngân sách tiếp thị giả định $A$, mức chi tham chiếu $R$ và hệ số phản hồi $\beta$:
 
 $$
-u(A)=1+\beta\ln(1+A/R),\quad A\ge0,\ R>0,\ \beta\ge0.
+u(A) = 1 + \beta \ln\left(1 + \frac{A}{R}\right), \quad \text{với } A \ge 0, R > 0, \beta \ge 0
 $$
 
-`R = reference_spend` cùng đơn vị BRL với `A`, **không phải giá sản phẩm**. Tham số tên `elasticity` điều khiển cường độ phản hồi; không phải elasticity doanh thu cố định. Khi $S_0>0$, elasticity theo ngân sách là $\frac{\beta A}{(R+A)[1+\beta\ln(1+A/R)]}$, phụ thuộc $A$.
+Trong đó $R$ là ngân sách tham chiếu (cùng đơn vị BRL với $A$), và $\beta$ là hệ số điều chỉnh độ nhạy của doanh thu theo ngân sách.
 
-### 2.2. Doanh Thu Dự Báo Theo Kịch Bản
+### 2.2. Doanh thu dự báo theo kịch bản
+Doanh thu theo kịch bản $\hat{S}(A)$ được tính bằng tích số giữa doanh thu cơ sở ban đầu $S_0$ và hệ số tăng trưởng $u(A)$:
 
 $$
-\hat S(A)=S_0[1+\beta\ln(1+A/R)].
+\hat{S}(A) = S_0 \cdot \left[1 + \beta \ln\left(1 + \frac{A}{R}\right)\right]
 $$
 
-Code sao chép `base_product`, gán `ad_spend=0`, rồi gọi `predict_sales` để có $S_0\ge0$. Vì mô hình tuần không học tác động quảng cáo, thao tác này không xác lập một counterfactual “không quảng cáo” đã được kiểm chứng. Baseline và ngân sách cần cùng khoảng thời gian; API không tự kiểm tra sự tương thích đó.
+### 2.3. Các chỉ số đo lường hiệu quả mô phỏng
+Khi $A > 0$, $S_0 > 0$ và giả định biên lợi nhuận gộp $m \in [0, 1]$:
+1. **Doanh thu tăng thêm (Incremental Sales):**
 
-### 2.3. Các Chỉ Số Đo Lường Hiệu Quả Tài Chính
-
-Với $A>0$, $S_0>0$ và biên lợi nhuận giả định $m$ (biên lợi nhuận gộp `gross_margin`)$:
-
-1. **Doanh thu gia tăng:** $\Delta S=S_0\beta\ln(1+A/R)$.
-2. **Tăng trưởng:** $100\Delta S/S_0$.
-3. **`ROAS`:** $\Delta S/A$; đây là incremental revenue/spend trong mô phỏng.
-4. **`Marketing_ROI_%`:** $100(m\Delta S-A)/A$. Khi $m=1$ mặc định, đây là proxy dựa trên doanh thu, không phải lợi nhuận thực đo sau mọi chi phí.
-
-Tại $A=0$, tỷ số ROAS/ROI không xác định về toán học; implementation trả **0** theo quy ước hiển thị. Khi $S_0=0$, code giữ doanh thu, incremental và growth bằng 0; với $A>0$, ROAS bằng 0 và ROI bằng -100%.
-
-## 3. Input / Output (Đặc tả Giao diện)
-
-
-
-### 3.1. Tham số Đầu vào
-
-Hàm `simulate_marketing_response` nhận:
-- `base_product`, `ad_spend_levels`, `model`, `pipeline`.
-- `elasticity=0.15`: hữu hạn, không âm.
-- `reference_spend=100.0`: hữu hạn, dương.
-- `gross_margin=1.0`: hữu hạn, trong [0,1].
-
-Mọi mức chi phải hữu hạn, không âm; vi phạm gây `ValueError`. `predict_scenario_marketing_campaign` nhận thêm `mode`; mode ngoài hai giá trị được hỗ trợ cũng gây `ValueError`. Không có tham số `baseline_sales`: baseline được suy ra qua model/pipeline. Đầu vào sản phẩm phải đáp ứng hợp đồng của pipeline đã fit.
-
-### 3.2. Cấu trúc Bảng Kết quả Trả về
-
-Bảng dưới là **ví dụ tính theo công thức**, giả định $S_0=100$ BRL, $R=100$ BRL, $\beta=0.15$, $m=0.4$; không phải kết quả đánh giá Olist. Các cột số được code làm tròn hai chữ số thập phân:
-
-| Ad_Spend_BRL | Baseline_Sales_BRL | Predicted_Sales_BRL | Incremental_Sales_BRL | Sales_Growth_% | ROAS | Marketing_ROI_% |
-| --- | --- | --- | --- | --- | --- | --- |
-| 0.00 | 100.00 | 100.00 | 0.00 | 0.00 | 0.00 | 0.00 |
-| 100.00 | 100.00 | 110.40 | 10.40 | 10.40 | 0.10 | -95.84 |
-| 500.00 | 100.00 | 126.88 | 26.88 | 26.88 | 0.05 | -97.85 |
-
-Output còn có cột `Interpretation` mô tả chế độ và giả định. Làm tròn có thể che mất ROAS rất nhỏ; không tính lại ROI từ ROAS đã làm tròn. Với danh sách chi rỗng, code hiện trả DataFrame rỗng không có schema cột cố định.
-
-## 4. Economic Properties & Boundary Conditions (Kiểm chứng Ranh giới)
-
-Với $A\ge0$, $R>0$, $S_0\ge0$, $\beta\ge0$:
-
-1. **Không chi:** $u(0)=1$, $\Delta S(0)=0$.
-2. **Lợi biên:**
 $$
-\frac{\partial\Delta S}{\partial A}=\frac{S_0\beta}{R+A}\ge0,\qquad \frac{\partial^2\Delta S}{\partial A^2}=-\frac{S_0\beta}{(R+A)^2}\le0
+\Delta S = \hat{S}(A) - S_0 = S_0 \cdot \beta \ln\left(1 + \frac{A}{R}\right)
 $$
-   Bất đẳng thức nghiêm chỉ khi $S_0\beta>0$; nếu baseline hoặc hệ số bằng 0 thì đường đáp ứng phẳng.
-3. **Không có trần hữu hạn:** Khi $S_0\beta>0$, $\Delta S\to\infty$ khi $A\to\infty$, dù lợi biên tiến về 0. Chưa mô hình hóa quy mô thị trường, giới hạn tồn kho hay bão hòa hữu hạn.
-4. **Hiệu quả theo giả định:** Với $A>0$, ROI âm khi $m\Delta S<A$. Điều kiện này không tự xác định ngân sách tối ưu; code chỉ tính trên các mức chi được cung cấp.
-5. **Giới hạn số học:** Kiểm tra hữu hạn ở đầu vào không bảo đảm mọi tỷ số trung gian đều hữu hạn với giá trị cực đoan. Chưa có guard đầy đủ cho overflow trong $A/R$ hoặc baseline không hữu hạn.
 
-## 5. Status & Integration (Trạng thái Triển khai)
+2. **Tỷ lệ tăng trưởng doanh số (Sales Growth %):**
 
-- **Triển khai:** Hàm mô phỏng nằm trong [predictor.py](../../src/deployment/predictor.py), được gọi ở [main.py](../../main.py) và [app.py](../../app.py).
-- **Kiểm chứng:** [tests/test_cold_start_and_marketing.py](../../tests/test_cold_start_and_marketing.py) chứa kiểm tra hành vi phần mềm, gồm lợi biên và bảo toàn zero baseline. Test tổng hợp không xác nhận hệ số kinh tế hay hiệu quả chiến dịch ngoài thực tế.
-- **Đánh giá tiếp theo:** Muốn hiệu chuẩn cần dữ liệu ngân sách/doanh thu cùng horizon và thiết kế nhận diện tác động; trước đó chỉ nên báo cáo sensitivity theo các giả định. Lượt cập nhật tài liệu không tạo kết quả marketing thực nghiệm mới.
+$$
+\text{Growth \%} = 100 \cdot \frac{\Delta S}{S_0} = 100 \cdot \beta \ln\left(1 + \frac{A}{R}\right)
+$$
+
+3. **Hệ số doanh thu trên chi phí (ROAS):**
+
+$$
+\text{ROAS} = \frac{\Delta S}{A}
+$$
+
+4. **Tỷ suất sinh lời tiếp thị ước tính (Marketing ROI %):**
+
+$$
+\text{Marketing ROI \%} = 100 \cdot \frac{m \cdot \Delta S - A}{A}
+$$
+
+---
+
+## 3. Input / Output (Đầu vào & Đầu ra mô phỏng)
+
+### 3.1. Tham số đầu vào
+Mô hình mô phỏng tiếp nhận các tham số:
+- `base_product`: Dòng dữ liệu của sản phẩm cần dự báo kịch bản.
+- `ad_spend_levels`: Danh sách các mức ngân sách cần mô phỏng ($A \ge 0$, đơn vị BRL).
+- `elasticity` ($\beta$): Hệ số phản hồi giả định (mặc định $\beta = 0.15$).
+- `reference_spend` ($R$): Mức chi tham chiếu (mặc định $R = 100.0$ BRL).
+- `gross_margin` ($m$): Tỷ lệ biên lợi nhuận gộp giả định (mặc định $m = 1.0$).
+
+### 3.2. Cấu trúc kết quả mô phỏng
+Bảng kết quả kịch bản bao gồm các cột thông tin:
+- `Ad_Spend_BRL`: Mức ngân sách tiếp thị đưa vào.
+- `Baseline_Sales_BRL`: Doanh thu dự báo cơ sở $S_0$.
+- `Predicted_Sales_BRL`: Doanh thu dự báo theo kịch bản $\hat{S}(A)$.
+- `Incremental_Sales_BRL`: Doanh thu tăng thêm $\Delta S$.
+- `Sales_Growth_%`: Tỷ lệ tăng trưởng doanh thu so với cơ sở.
+- `ROAS`: Doanh thu tăng thêm thu được trên mỗi đồng chi phí.
+- `Marketing_ROI_%`: Tỷ suất sinh lời ước tính.
+
+---
+
+## 4. Mathematical Properties & Boundary Conditions (Tính chất Toán học & Điều kiện Biên)
+
+Hàm mô phỏng được xây dựng thỏa mãn các tính chất tự nhiên:
+1. **Khi không chi tiền quảng cáo ($A = 0$):** Hệ số tăng trưởng $u(0) = 1$, doanh thu tăng thêm $\Delta S(0) = 0$ BRL.
+2. **Quy luật lợi suất giảm dần:** Đạo hàm bậc nhất và bậc hai của doanh thu tăng thêm theo ngân sách:
+
+$$
+\frac{\partial \Delta S}{\partial A} = \frac{S_0 \beta}{R + A} \ge 0, \qquad \frac{\partial^2 \Delta S}{\partial A^2} = -\frac{S_0 \beta}{(R + A)^2} \le 0
+$$
+
+   Điều này phản ánh thực tế rằng khi tiếp tục tăng ngân sách, doanh thu vẫn tăng nhưng tốc độ tăng chậm dần do thị trường dần bão hòa.
+3. **Khi doanh thu cơ sở bằng 0 ($S_0 = 0$):** Nếu sản phẩm dự báo không bán được trong tuần, mô hình giữ nguyên doanh thu bằng 0 ở mọi mức ngân sách, phản ánh giả định rằng quảng cáo không thể tạo ra doanh số nếu sản phẩm không có nhu cầu cơ bản.
+
+---
+
+## 5. Scope & Notes (Phạm vi Áp dụng & Lưu ý)
+
+- **Mục đích sử dụng:** Phục vụ trực quan hóa các kịch bản giả định What-If trên giao diện ứng dụng, giúp người dùng quan sát xu hướng biến thiên của doanh thu khi thay đổi ngân sách.
+- **Lưu ý:** Nhóm nhấn mạnh rằng đây chỉ là phần mô phỏng What-If trên các tham số toán học giả định, không phải kết quả học máy từ dữ liệu Olist, và không dùng để đánh giá độ chính xác của bài lab.

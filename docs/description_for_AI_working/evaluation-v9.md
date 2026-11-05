@@ -2,7 +2,7 @@ Bản v9. Xây Dựng Động Cơ Mô Phỏng Tiếp Thị Kinh Tế Lượng (M
 
 > **Ghi chú lịch sử phát triển:** Nội dung và số liệu dưới đây phản ánh các giai đoạn cũ. Xem [kết quả hiện tại](../algorithms/README.md) và [README chính](../../README.md) cho lần chạy full ngày 27/10/2026.
 
-Mục tiêu của bản này là nâng cấp kịch bản marketing từ mức hợp đồng dữ liệu tĩnh (trả về NaN do thiếu dữ liệu chiến dịch trong log Olist) thành động cơ mô phỏng tiếp thị kinh tế lượng chuẩn mực, ứng dụng hàm bão hòa phi tuyến và định luật lợi biên giảm dần để lượng hóa doanh thu tăng thêm và tỷ suất sinh lời ROAS.
+Mục tiêu của bản này là nâng cấp kịch bản marketing từ mức quy ước dữ liệu tĩnh (trả về NaN do thiếu dữ liệu chiến dịch trong log Olist) thành động cơ mô phỏng tiếp thị kinh tế lượng chuẩn mực, ứng dụng hàm bão hòa phi tuyến và định luật lợi biên giảm dần để lượng hóa doanh thu tăng thêm và tỷ suất sinh lời ROAS.
 
 Bước 1. Cơ sở toán học kinh tế lượng (Advertising Elasticity of Demand - AED)
 Do nhật ký Olist không ghi nhận chi phí quảng cáo cấp sản phẩm, hệ thống áp dụng hàm phản hồi tiếp thị bão hòa chuẩn kinh tế học (Diminishing Marginal Returns Log-Response):
@@ -24,7 +24,7 @@ Tính toán đồng bộ 4 chỉ số kinh doanh:
 
 Bước 4. Cung cấp hai chế độ vận hành linh hoạt
 Trong hàm predict_scenario_marketing_campaign() tại src/deployment/predictor.py:
-- Chế độ 'baseline_only' (mặc định): Duy trì tính trung thực khoa học, giữ NaN cho Incremental Sales để tương thích hoàn toàn với các bài kiểm thử hợp đồng dữ liệu cũ.
+- Chế độ 'baseline_only' (mặc định): Duy trì tính trung thực khi làm bài, giữ NaN cho Incremental Sales để tương thích hoàn toàn với các bài kiểm thử quy ước dữ liệu cũ.
 - Chế độ 'calibrated_diminishing_returns' (hoặc hàm tiện ích simulate_marketing_response): Kích hoạt động cơ mô phỏng kinh tế lượng.
 
 Bước 5. Triển khai trực quan hóa trên Streamlit app.py và Notebook 05

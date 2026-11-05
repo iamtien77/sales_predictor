@@ -19,7 +19,7 @@ Loại bỏ các bản ghi thiếu mã product_id (giá trị null/NaN).
 Xác nhận các sản phẩm đều có mã định danh duy nhất dài 32 ký tự hex.
 
 Bước 4. Nguyên tắc không cắt xén nhãn mục tiêu (No Target Capping)
-Tuân thủ nguyên tắc phương pháp luận: không áp dụng kỹ thuật kẹp biên (capping) hay loại bỏ các giao dịch có giá trị cực cao.
+Tuân thủ nguyên tắc phương pháp thực hiện: không áp dụng kỹ thuật kẹp biên (capping) hay loại bỏ các giao dịch có giá trị cực cao.
 Các đơn hàng có giá trị hàng nghìn BRL là giao dịch thực tế trên sàn thương mại điện tử, việc cắt bỏ sẽ làm méo mó bản chất phân phối doanh thu.
 
 Bước 5. Khóa số lượng dòng sản phẩm hợp lệ

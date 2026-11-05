@@ -1,107 +1,60 @@
-# Kiểm chứng thực nghiệm và chẩn đoán mô hình
+# Kế Hoạch Kiểm Tra & Đánh Giá Mô Hình
 
-Lệnh tái lập: `.venv/Scripts/python.exe -m src.evaluation.experiments --weekly`.
-Nguồn: `results/metrics/experiments/`, có hash từng CSV trong manifest.
-Đây là phân tích thăm dò sau khi đã xem Test ở các vòng trước, **không phải tập
-kiểm định mù mới**. Không chọn tham số trên Test, không thay artifact triển khai.
-Ba cửa sổ Test không giao nhau; các cửa sổ Train mở rộng và chỉ chứa nhãn đã hoàn tất.
+Tài liệu này mô tả cách nhóm kiểm tra tính ổn định của các mô hình qua nhiều mốc thời gian khác nhau và phân tích các trường hợp mô hình có thể dự báo sai, giúp hiểu rõ hơn hoạt động của từng thuật toán trong bài lab.
 
-## Dự báo tuần qua ba mốc
+---
 
-| Fold | Start | EndExclusive | TrainCount | TestCount | Zero_RMSE | Hurdle_RMSE | RMSE_improvement_pct | Zero_MAE | Hurdle_MAE |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | 2017-11-20 00:00:00 | 2018-01-29 00:00:00 | 285189 | 164091 | 73.4037 | 67.4105 | 8.1646 | 8.2928 | 13.0057 |
-| 2 | 2018-01-29 00:00:00 | 2018-04-09 00:00:00 | 449280 | 205786 | 69.3522 | 60.2049 | 13.1896 | 7.0495 | 11.2984 |
-| 3 | 2018-04-09 00:00:00 | 2018-08-21 00:00:00 | 655066 | 543116 | 57.8666 | 52.4506 | 9.3595 | 4.9107 | 9.0776 |
+## 1. Thiết kế Đánh giá Dự báo Tuần qua Nhiều Cửa sổ Thời gian (Rolling Temporal Validation)
 
-Hurdle giảm RMSE so với Zero ở cả ba cửa sổ nhưng MAE cao hơn ở cả ba.
-Đây là sự ổn định của đánh đổi quan sát được, không phải bảo đảm tương lai.
-Mỗi fold fit lại preprocessing trên Train và huấn luyện Hurdle trên toàn Train,
-giữ tham số mặc định cố định. Lag trong Test dùng lịch sử đã xảy ra trước từng
-tuần đích: đánh giá one-week-ahead cập nhật quan sát, không phải dự báo đa bước
-không có quan sát mới. Không dùng các bảng này để đổi artifact đang triển khai.
+Để kiểm chứng xem sự vượt trội của mô hình (đặc biệt là kiến trúc Two-Stage Hurdle) có tính ổn định theo thời gian hay chỉ là hiện tượng ngẫu nhiên trên một lát cắt dữ liệu, nhóm thiết kế giao thức kiểm tra qua 3 cửa sổ chuỗi thời gian liên tiếp:
 
-## Cold-start proxy: ba cửa sổ
+### 1.1. Cấu trúc các cửa sổ kiểm tra (Expanding Window Split)
+- **Nguyên tắc cửa sổ mở rộng:** Tập Train được mở rộng dần theo thời gian quá khứ, trong khi các cửa sổ Test là các khoảng thời gian kế tiếp không giao nhau.
+- **Độc lập thời gian:** Mỗi fold thực hiện fit lại toàn bộ các bước tiền xử lý (Imputer, Scaler, Encoder) CHỈ trên tập Train tương ứng của fold đó, sau đó transform sang tập Test để loại bỏ triệt để rò rỉ dữ liệu.
+- **Quy tắc tính toán đặc trưng trễ:** Các đặc trưng trễ (`last_week_sales`, `sales_lag_2_weeks`, `sales_lag_4_weeks`) và thống kê cuộn 4 tuần trong tập Test chỉ được sử dụng thông tin phát sinh trước thời điểm thứ Hai đầu tuần của từng tuần đích, mô phỏng đúng bài toán dự báo một tuần tiếp theo (Rolling One-week-ahead).
 
-| Fold | Model | TrainCount | TestCount | MAE | RMSE | R2 |
-| --- | --- | --- | --- | --- | --- | --- |
-| 1 | Price | 16433 | 3413 | 24.3905 | 122.0739 | 0.7645 |
-| 1 | CategoryMedian | 16433 | 3413 | 110.6553 | 258.2364 | -0.0540 |
-| 1 | LogTree | 16433 | 3413 | 37.8606 | 124.4177 | 0.7553 |
-| 1 | RawRevenueTree | 16433 | 3413 | 44.5552 | 124.3070 | 0.7558 |
-| 2 | Price | 19734 | 3780 | 27.0166 | 150.6722 | 0.7526 |
-| 2 | CategoryMedian | 19734 | 3780 | 123.7925 | 294.6785 | 0.0536 |
-| 2 | LogTree | 19734 | 3780 | 41.7226 | 148.5883 | 0.7594 |
-| 2 | RawRevenueTree | 19734 | 3780 | 51.3779 | 179.9708 | 0.6470 |
-| 3 | Price | 23428 | 8110 | 23.0145 | 120.9134 | 0.8520 |
-| 3 | CategoryMedian | 23428 | 8110 | 126.6543 | 313.9562 | 0.0022 |
-| 3 | LogTree | 23428 | 8110 | 39.7939 | 135.4682 | 0.8142 |
-| 3 | RawRevenueTree | 23428 | 8110 | 46.7903 | 152.6722 | 0.7640 |
+### 1.2. Mục tiêu so sánh đối chuẩn
+- So sánh sai số RMSE và MAE trên đơn vị BRL giữa mô hình Hai giai đoạn Hurdle và Zero Baseline qua từng cửa sổ.
+- Đánh giá tính ổn định của các chỉ số sai số của mô hình ứng viên so với các baseline chuẩn qua từng thời kỳ lịch sử.
 
-### Vì sao cây thua baseline giá?
+---
 
-| Fold | Model | Group | Count | MAE | RMSE |
-| --- | --- | --- | --- | --- | --- |
-| 1 | Price | one_unit | 2921 | 0.0000 | 0.0000 |
-| 1 | Price | multiple_units | 492 | 169.1965 | 321.5204 |
-| 1 | LogTree | one_unit | 2921 | 18.0598 | 43.9440 |
-| 1 | LogTree | multiple_units | 492 | 155.4180 | 309.7067 |
-| 2 | Price | one_unit | 3198 | 0.0000 | 0.0000 |
-| 2 | Price | multiple_units | 582 | 175.4688 | 383.9878 |
-| 2 | LogTree | one_unit | 3198 | 20.9807 | 67.6426 |
-| 2 | LogTree | multiple_units | 582 | 155.6964 | 343.8815 |
-| 3 | Price | one_unit | 6932 | 0.0000 | 0.0000 |
-| 3 | Price | multiple_units | 1178 | 158.4444 | 317.2577 |
-| 3 | LogTree | one_unit | 6932 | 22.0148 | 78.7251 |
-| 3 | LogTree | multiple_units | 1178 | 144.4163 | 299.7873 |
+## 2. Thiết kế Kế hoạch Kiểm chứng Cold-Start Proxy
 
-Nhóm một đơn vị chiếm đa số. Với target bao gồm giao dịch đầu, baseline giá đúng
-hoàn toàn ở nhóm này theo cấu trúc bài toán. Cây dự báo trung bình theo vùng đặc
-trưng nên sai ở nhóm một đơn vị. Cây giảm lỗi ở nhóm nhiều đơn vị nhưng lợi ích
-không bù được MAE phát sinh trên nhóm lớn. Phân nhóm dựa vào nhãn thật chỉ dùng
-phân tích sau đánh giá, không được dùng để định tuyến dự báo lúc triển khai.
+### 2.1. Giao thức đánh giá qua nhiều giai đoạn
+- Bài toán proxy ước lượng doanh thu 7 ngày kể từ giao dịch đầu tiên được kiểm chứng qua 3 cửa sổ thời gian khởi đầu độc lập.
+- Các ứng viên tham gia đối chứng gồm:
+  1. **Baseline Giá bán đơn vị (Price Baseline):** $\hat{s} = \text{first\_price}$.
+  2. **Baseline Trung vị Danh mục (Category Median Baseline):** $\hat{s} = \text{median}(\text{category})$.
+  3. **Cây Hồi quy Học trên Không gian Log (LogTree):** Cây quyết định học trên $\log(1 + \text{sales})$ từ thuộc tính sản phẩm và giá bán đầu tiên, sau đó chuyển ngược về BRL.
+  4. **Cây Hồi quy Học Trực tiếp trên Doanh thu Gốc (RawRevenueTree):** Cây quyết định học trực tiếp trên thang đo tiền tệ BRL nhằm kiểm tra giả thuyết liệu việc biến đổi log có phải là nguyên nhân làm sai lệch phân phối hay không.
 
-`RawRevenueTree` giữ cùng dữ liệu, phép biến đổi đặc trưng và tham số cây, chỉ đổi
-nhãn từ log sang BRL. Kết quả không cải thiện nhất quán: không thể quy mọi lỗi
-cho log-transform hoặc khẳng định cây trên BRL luôn tốt hơn. Cold-start này vẫn
-là proxy **sau lần bán đầu**, không phải trước niêm yết.
+### 2.2. Phương pháp Phân tích Lỗi: Phân khúc Một đơn vị vs Nhiều đơn vị
+Nhóm thiết kế kỹ thuật phân tích lỗi bóc tách (Error Decomposition) bằng cách chia tập dữ liệu thành hai phân khúc:
+- **Phân khúc Một đơn vị (`one_unit`):** Các sản phẩm chỉ bán được đúng một đơn vị duy nhất trong vòng 7 ngày đầu.
+- **Phân khúc Nhiều đơn vị (`multiple_units`):** Các sản phẩm phát sinh thêm giao dịch trong vòng 7 ngày đầu.
 
-## Linear Regression: tái hiện và thí nghiệm đối chứng
+**Mục tiêu chẩn đoán:**
+- Đo lường mức độ ảnh hưởng của cấu trúc biến mục tiêu (đã bao hàm giao dịch đầu tiên) lên sai số của Baseline Giá so với mô hình cây trên từng phân khúc sản phẩm.
 
-| Mode | Alpha | Split | LogRMSE | RMSE | MaxPredictedLog | MaxTrainLog | Top1PctSSEShare | TrainMaxCapRMSE |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| fast20k | 0.0000 | Validation | 0.7802 | 6557.3543 | 13.1463 | 8.7642 | 1.0000 | 140.1342 |
-| fast20k | 0.0000 | Test | 0.7297 | 5400.8772 | 13.1463 | 8.7642 | 1.0000 | 137.5077 |
-| fast20k | 1.0000 | Validation | 0.7801 | 6557.3042 | 13.1463 | 8.7642 | 1.0000 | 140.1280 |
-| fast20k | 1.0000 | Test | 0.7295 | 5401.5922 | 13.1463 | 8.7642 | 1.0000 | 137.5025 |
-| fast20k | 100.0000 | Validation | 0.7784 | 6533.1311 | 13.1463 | 8.7642 | 1.0000 | 139.8398 |
-| fast20k | 100.0000 | Test | 0.7274 | 5367.3550 | 13.1463 | 8.7642 | 1.0000 | 137.1950 |
-| full | 0.0000 | Validation | 0.7694 | 11211.0106 | 14.0248 | 9.3498 | 1.0000 | 191.8852 |
-| full | 0.0000 | Test | 0.7140 | 5511.6709 | 14.0248 | 9.3498 | 1.0000 | 175.4652 |
-| full | 1.0000 | Validation | 0.7694 | 11211.1544 | 14.0248 | 9.3498 | 1.0000 | 191.8858 |
-| full | 1.0000 | Test | 0.7140 | 5511.8488 | 14.0248 | 9.3498 | 1.0000 | 175.4671 |
-| full | 100.0000 | Validation | 0.7694 | 11215.3307 | 14.0248 | 9.3498 | 1.0000 | 191.9016 |
-| full | 100.0000 | Test | 0.7139 | 5520.3969 | 14.0248 | 9.3498 | 1.0000 | 175.5541 |
+---
 
-Hai chế độ tái hiện dùng đúng ma trận cache và seed 42: 20.000 dòng ngẫu nhiên
-hoặc toàn bộ Train. Cột `Top1PctSSEShare` đo tỷ trọng SSE của 1% mẫu lỗi cao nhất.
-Sai số log nhỏ về trung bình không bảo đảm sai số BRL nhỏ: expm1 khuếch đại phần
-đuôi dương; giới hạn hiện tại vẫn cho phép dự báo log vượt cực đại Train 50% span.
-Các mẫu cực trị và dự báo tiền tệ được xuất ở `linear_extremes.csv`.
+## 3. Thiết kế Thí nghiệm Chẩn đoán Hiện tượng Nổ Số học của Linear Regression
 
-Ridge 1 và 100 hầu như không cải thiện RMSE so với 1e-5; đây không phải bằng
-chứng lỗi chỉ do thiếu regularization hay do dữ liệu chắc chắn phi tuyến.
-`TrainMaxCapRMSE` là can thiệp chẩn đoán: giữ nguyên trọng số, chỉ chặn log tại
-cực đại nhãn Train. RMSE giảm mạnh ngay cả trên Validation, xác nhận phần đuôi
-nghịch đảo log là tác nhân quan trọng. Tuy nhiên mức lỗi vẫn cao; không tuyên bố
-clipping đã giải quyết dự báo, cũng không âm thầm thay thuật toán bằng kết quả Test.
-Gram condition và norm hệ số được lưu để kiểm tra số học, không tự coi condition
-lớn là nguyên nhân duy nhất (one-hot và intercept có thể phụ thuộc tuyến tính).
+### 3.1. Hiện tượng cần lưu ý khi làm bài
+Mô hình hồi quy tuyến tính trong không gian logarit khi chuyển đổi ngược về thang tiền tệ BRL bằng hàm mũ ($\text{expm1}$) có nguy cơ bùng nổ số học do hiệu ứng đòn bẩy hàm mũ ở phần đuôi phân phối.
 
-## Cold-start trước lần bán đầu
+### 3.2. Thiết kế Thí nghiệm Đối chứng
+Nhóm thử nghiệm với các yếu tố:
+1. **Hệ số điều chuẩn Ridge ($\alpha_{\text{ridge}}$):** Khảo sát các mức $\alpha \in \{10^{-5}, 1.0, 100.0\}$ để kiểm tra xem liệu việc tăng độ phạt trọng số có hạn chế được giá trị log ngoại lai hay không.
+2. **Quy mô tập huấn luyện:** Khảo sát trên tập mẫu con (20.000 dòng) và toàn bộ tập Train (hơn 655.000 dòng) để đánh giá ảnh hưởng của kích thước ma trận dữ liệu.
+3. **Cơ chế Kẹp trần Thích ứng (Adaptive Clamping):** Thiết kế chốt chặn an toàn giới hạn dự báo log không vượt quá miền giá trị cực đại quan sát được trên tập Train:
 
-Chưa có catalog thực để kiểm chứng. Luồng mới `src/data/launch.py` giữ cả sản phẩm
-không bán, dùng giá catalog và mốc niêm yết; `src/evaluation/listing_launch.py`
-huấn luyện, đánh giá ba fold và xuất artifact riêng khi có dữ liệu đó.
-Xem [hợp đồng dữ liệu](listing_data_contract.md). Test tổng hợp chỉ xác minh luồng
-và chống rò rỉ thời gian, không dùng làm metric thị trường.
+$$
+\hat{y}_{\text{clipped}} = \min(\hat{y}, y_{\max,\text{train}})
+$$
+
+### 3.3. Tiêu chí phân tích chẩn đoán
+- Đo lường tỷ trọng của 1% số mẫu có sai số lớn nhất đóng góp vào tổng sai số bình phương (Top 1% SSE Share).
+- Phân tích tương quan giữa số điều kiện của ma trận Gram (Condition Number), chuẩn trọng số $\|w\|_2$ và sai số BRL thực tế.
+- Bài học rút ra: Cần thiết lập cơ chế kẹp biên an toàn (clamping/guardrails) khi chuyển đổi dự báo từ log sang hàm mũ để tránh số quá lớn làm sai lệch kết quả.

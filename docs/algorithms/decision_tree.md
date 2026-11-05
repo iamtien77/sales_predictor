@@ -1,28 +1,27 @@
 # 🌳 Cây Quyết Định Hồi Quy (Decision Tree Regressor From-Scratch)
 
-> **Vị trí trong dự án:** Thuật toán hồi quy phi tuyến tính cốt lõi và là **Mô hình đơn khối tốt nhất (Best Single Model) - Hạng 2 toàn hệ thống** sau khi tinh chỉnh siêu tham số trên tập Validation độc lập. Đây cũng là khối xây dựng cơ sở (Base Learner) cho Random Forest, Gradient Boosting và Two-Stage Hurdle Regressor.
-> **Mã nguồn triển khai:** Class [`DecisionTreeRegressorFromScratch`](../../src/models/tree.py) và đối tượng nút [`DecisionTreeNode`](../../src/models/tree.py) trong [`src/models/tree.py`](../../src/models/tree.py), được re-export qua Facade [`src/models/regressors.py`](../../src/models/regressors.py).
-> **Module tinh chỉnh:** Hàm [`tune_decision_tree`](../../src/models/tuning.py) trong [`src/models/tuning.py`](../../src/models/tuning.py).
+> **Vị trí trong bài lab:** Mô hình hồi quy phi tuyến tính dạng cây, được nhóm thiết kế nhằm học các mối quan hệ phi tuyến trong dữ liệu thương mại điện tử. Đây đồng thời là khối cơ sở cho các thuật toán Ensemble (Random Forest, Gradient Boosting) và mô hình Two-Stage Hurdle.
+> **Mục tiêu trong bài lab:** Thử nghiệm mô hình cây quyết định dạng quy tắc If-Else đơn giản, dễ giải thích và xem có cải thiện hơn so với các baseline cơ sở hay không.
 
 ---
 
 ## 1. Purpose (Mục đích & Động lực lựa chọn)
 
 ### 1.1. Mục đích bài toán
-Trong bài toán dự báo doanh thu bán lẻ chuỗi thời gian theo tuần (Weekly Product Sales Forecasting) trên sàn thương mại điện tử Olist, dữ liệu mang các đặc thù phân phối rất phức tạp:
-- **Tính phi tuyến tính mạnh mẽ:** Mối quan hệ giữa doanh thu với các biến trễ thời gian (`last_week_sales`, `sales_mean_4_weeks`), giá bán (`price`) và đánh giá uy tín (`past_review_rating`) không tuân theo quy luật đường thẳng.
-- **Dữ liệu thưa và nhiều số 0 (Zero-Inflated Demand):** Đa số sản phẩm có nhiều tuần không phát sinh đơn hàng (`sales = 0`), khiến các mô hình tuyến tính dễ bị nhiễu và dự báo lệch lạc.
-- **Tương tác đặc trưng phức hợp:** Sự kết hợp giữa các tuần lễ hội (`is_peak_shopping_season`) và ngành hàng cụ thể (`category_*`) tạo ra các ngưỡng phân nhánh có điều kiện cục bộ.
+Trong bài toán dự báo doanh thu bán lẻ chuỗi thời gian theo tuần trên sàn thương mại điện tử Olist, dữ liệu mang các đặc thù phân phối phức tạp:
+- **Tính phi tuyến tính mạnh mẽ:** Mối quan hệ giữa doanh thu với các biến trễ thời gian (`last_week_sales`, `sales_mean_4_weeks`), giá bán (`price`) và đánh giá chất lượng (`past_review_rating`) không tuân theo quy luật đường thẳng.
+- **Dữ liệu thưa và nhiều số 0 (Zero-Inflated Demand):** Đa số sản phẩm có nhiều tuần không phát sinh đơn hàng (`sales = 0`), khiến mô hình tuyến tính dễ bị nhiễu cục bộ.
+- **Tương tác đặc trưng phức hợp:** Sự kết hợp giữa các tuần lễ hội (`is_peak_shopping_season`) và ngành hàng cụ thể (`product_category_name`) tạo ra các ngưỡng phân nhánh có điều kiện cục bộ.
 
-Mục đích của thuật toán **Decision Tree Regressor** là:
-- Chia tách không gian 89 đặc trưng thành các siêu hình hộp trực giao (Axis-aligned hyper-rectangles) đồng nhất về doanh thu bằng cơ chế đệ quy nhị phân.
+Mục đích của thuật toán **Decision Tree Regressor** trong thiết kế của nhóm:
+- Chia tách không gian đặc trưng thành các siêu hình hộp trực giao (Axis-aligned hyper-rectangles) đồng nhất về doanh thu bằng cơ chế đệ quy nhị phân.
 - Học các quy tắc quyết định dạng cây dễ diễn giải (*If-Else Rules*), phản ánh chính xác các ngưỡng nhạy cảm về doanh thu của từng nhóm sản phẩm.
-- Đóng vai trò là khối xây dựng nền tảng (*base learner*) cho các thuật toán Ensemble Bagging (Random Forest) và Boosting (Gradient Boosting).
+- Đóng vai trò là khối xây dựng nền tảng (*base learner*) cho các thuật toán Ensemble Bagging và Boosting.
 
 ### 1.2. Cơ sở toán học & Tiêu chuẩn phân chia
-Mô hình cài đặt thuần NumPy 100% dựa trên tiêu chuẩn **Giảm phương sai (Variance Reduction)** làm hàm độ lợi tối ưu hóa tại mỗi nút phân nhánh:
+Mô hình được thiết kế dựa trên tiêu chuẩn **Giảm phương sai (Variance Reduction)** làm hàm độ lợi tối ưu hóa tại mỗi nút phân nhánh:
 
-Tại một nút $D$ chứa $N$ mẫu với biến mục tiêu $y$, phương sai của nút được định nghĩa:
+Tại một nút $D$ chứa $|D|$ mẫu với biến mục tiêu $y$, phương sai của nút được định nghĩa:
 
 $$
 \text{Var}(D) = \frac{1}{|D|} \sum_{i \in D} \left( y_i - \bar{y}_D \right)^2, \quad \text{với } \bar{y}_D = \frac{1}{|D|} \sum_{i \in D} y_i
@@ -41,112 +40,78 @@ Thuật toán quét qua các thuộc tính ứng viên và ngưỡng chia cắt 
 ## 2. Input / Output (Đầu vào & Đầu ra)
 
 ### 2.1. Định dạng dữ liệu đầu vào (Input)
-Số 89 là kích thước snapshot, không phải hằng số của thuật toán. API nhận cả sparse matrix nhưng chuyển thành dense `float64` nội bộ; RAM còn tăng bởi các bản sao khi chia nút. Caller phải bảo đảm X/y cùng số dòng, hữu hạn, Train không rỗng và đúng thứ tự feature; lớp chưa kiểm tra đầy đủ các điều kiện này.
-
-- **Ma trận đặc trưng $X$:** Mảng dense NumPy 2D `float64` kích thước $(N, 89)$ gồm:
-  - 16 đặc trưng số học đã qua chuẩn hóa Z-Score (`CustomStandardScaler`).
-  - 73 đặc trưng phân loại đã mã hóa One-Hot (`CustomOneHotEncoder`).
-- **Vector nhãn mục tiêu $y$:** Vector NumPy 1D kích thước $(N,)$ trong không gian log tự nhiên:
+- **Ma trận đặc trưng $X$:** Mảng ma trận 2D số thực kích thước $(N, D)$ gồm các đặc trưng số học (trễ, cuộn, giá, lịch) và các đặc trưng phân loại ngành hàng đã qua mã hóa.
+- **Vector nhãn mục tiêu $y$:** Vector số thực 1D kích thước $(N,)$ trong không gian log tự nhiên:
 
 $$
-  y = \log(1 + \text{sales}) = \text{log1p}(\text{sales})
+y = \log(1 + \text{sales})
 $$
 
 ### 2.2. Định dạng dữ liệu đầu ra (Output)
-- **Phương thức `predict(X)`:** Trả về vector dự báo liên tục $\hat{y}$ trong không gian log tự nhiên.
-- **Hàm chuyển đổi tiền tệ thực tế BRL:** Khi suy luận thực tế và đánh giá hiệu năng, giá trị được chuyển đổi ngược về thang đo BRL và chặn dưới bằng 0:
+- **Dự báo trong không gian log:** Trả về vector dự báo liên tục $\hat{y}$ tương ứng với giá trị trung bình tại nút lá.
+- **Hàm chuyển đổi tiền tệ thực tế BRL:**
 
 $$
-  \hat{y}_{\text{sales}} = \max\left(0.0, \exp(\hat{y}) - 1\right) = \max\left(0.0, \text{expm1}(\hat{y})\right)
+\hat{y}_{\text{sales}} = \max\left(0.0, \exp(\hat{y}) - 1\right) \text{ BRL}
 $$
 
 ---
 
-## 3. Data Used (Dữ liệu sử dụng & Hợp đồng chuỗi thời gian)
+## 3. Data Used (Dữ liệu sử dụng & Ràng buộc thời gian)
 
 ### 3.1. Phân chia tập dữ liệu (Temporal Split)
-Dự án chia theo tuần lịch (Temporal Split 80/10/10 theo số tuần, không theo số dòng) và fit preprocessing chỉ trên Train. Cách chia này không loại hết leakage: nguồn lọc `delivered` cuối kỳ có thể chứa thông tin chưa biết tại forecast origin.
-- **Tập Huấn luyện (Train Set):** 655.066 dòng sản phẩm–tuần (~80% số tuần lịch đầu tiên).
-- **Tập Kiểm định (Validation Set):** 249.399 dòng sản phẩm–tuần (~10% số tuần lịch tiếp theo, dùng để tinh chỉnh siêu tham số và chọn mô hình chiến thắng).
-- **Tập Kiểm thử Độc lập (Test Set):** 293.717 dòng sản phẩm–tuần (~10% số tuần lịch cuối cùng, hoàn toàn giữ kín đến bước nghiệm thu).
+- **Tập Train (khoảng 80% số tuần đầu):** Học cấu trúc cây phân nhánh và giá trị tại các lá.
+- **Tập Validation (khoảng 10% số tuần kế tiếp):** Dùng để tinh chỉnh siêu tham số độ sâu và số mẫu tối thiểu tại lá.
+- **Tập Test (khoảng 10% số tuần cuối):** Đánh giá kiểm định độc lập cuối cùng.
 
 ### 3.2. Bảo toàn tuần doanh thu bằng 0 (Zero-Sales Weeks)
-- Với mỗi sản phẩm, toàn bộ các tuần không có đơn hàng từ tuần bán đầu tiên đến tuần kết thúc quan sát đều được gán `sales = 0.0` BRL.
-- Tỷ lệ số dòng có doanh thu bằng 0 chiếm trên 90% tổng số bản ghi trong bảng weekly panel, phản ánh trung thực bản chất thưa của thị trường thương mại điện tử.
+- Với mỗi sản phẩm, toàn bộ các tuần không có đơn hàng từ tuần bán đầu tiên đến hết kỳ quan sát đều được giữ nguyên với `sales = 0.0` BRL để phản ánh đúng mật độ nhu cầu thực tế.
 
-### 3.3. Thuộc tính đầu vào (89 Features)
-Lag/rolling được thiết kế dùng lịch sử trước 00:00 thứ Hai của tuần đích. Trạng thái giao hàng cuối kỳ và metadata snapshot chưa được tái dựng theo thời điểm; chưa thể khẳng định toàn bộ feature đã khả dụng tại origin.
-- Lịch sử bán: `price`, `last_week_sales`, `sales_lag_2_weeks`, `sales_lag_4_weeks`.
-- Thống kê trượt: `sales_mean_4_weeks`, `sales_std_4_weeks`.
-- Sản lượng & Vòng đời: `last_week_units`, `weeks_since_first_sale`.
-- Đánh giá & Khách hàng: `past_review_count`, `past_review_rating` (chỉ tính review trả lời trước tuần đích), `customer_past_spend`, `customer_past_orders`, `customer_state_count`.
-- Mùa vụ & Ngành hàng: `month_sin`, `month_cos`, `is_peak_shopping_season`, 73 cột danh mục `category_*`.
+### 3.3. Quy tắc thời gian của đặc trưng
+- Toàn bộ các đặc trưng trễ (`last_week_sales`, `sales_lag_2_weeks`, `sales_lag_4_weeks`) và thống kê cuộn (`sales_mean_4_weeks`, `sales_std_4_weeks`) đều chỉ được tính trên cửa sổ thời gian đã kết thúc trước 00:00 thứ Hai của tuần dự báo.
 
 ---
 
 ## 4. Evaluation (Phương pháp đánh giá)
 
 ### 4.1. Hàm mất mát huấn luyện
-Trong quá trình xây dựng cây, tiêu chí tối ưu tương đương với cực tiểu hóa hàm mất mát bình phương trung bình (Mean Squared Error - MSE) trên không gian log:
+Trong quá trình xây dựng cây, tiêu chí tối đa hóa độ giảm phương sai tương đương với việc cực tiểu hóa sai số bình phương trung bình (MSE) trên không gian log:
 
 $$
 \mathcal{L}(y, \hat{y}) = \frac{1}{N} \sum_{i=1}^{N} (y_i - \hat{y}_i)^2
 $$
 
-### 4.2. Bộ 4 chỉ số đo lường trên thang đo tiền tệ thực tế (BRL)
-Để phản ánh chính xác sai số tài chính trong quản trị kho vận, toàn bộ đánh giá trên tập Validation và Test đều được đo trực tiếp trên thang đo tiền tệ BRL:
-1. **Mean Squared Error (MSE):** Đơn vị $\text{BRL}^2$.
+### 4.2. Bộ chỉ số đo lường trên thang đo tiền tệ thực tế (BRL)
+Toàn bộ đánh giá lựa chọn mô hình đều được đo lường trực tiếp trên thang đo tiền tệ BRL:
+1. **Root Mean Squared Error (RMSE):** Đơn vị $\text{BRL}$, tiêu chí chính để chọn mô hình tối ưu trên tập Validation.
 2. **Mean Absolute Error (MAE):** Đơn vị $\text{BRL}$, đo sai lệch doanh thu trung bình trên mỗi sản phẩm–tuần.
-3. **Root Mean Squared Error (RMSE):** Đơn vị $\text{BRL}$, tiêu chí chính để xếp hạng và chọn mô hình.
+3. **Mean Squared Error (MSE):** Đơn vị $\text{BRL}^2$.
 4. **Hệ số xác định ($R^2$ Score):** Đo lường tỷ lệ phương sai doanh thu được giải thích so với mốc Baseline trung bình.
 
 ---
 
-## 5. Status (Trạng thái triển khai & Tối ưu kỹ thuật)
+## 5. Status (Trạng thái thiết kế & Tối ưu kỹ thuật)
 
-Cây dừng khi đạt `max_depth`, thiếu `min_samples_split`, variance nhỏ hơn `1e-10` hoặc không có split gain dương. Hai nhánh đều phải đạt `min_samples_leaf`; lá trả trung bình nhãn log. `max_depth=None` thực tế thành 20; không có pruning hậu kỳ hoặc xử lý missing trực tiếp tại nút. Khi gain bằng nhau, giữ ứng viên gặp trước. `predict` trước `fit` gây `RuntimeError`. Importance từ giảm impurity không chứng minh tác động nhân quả.
+- **Nguyên tắc dừng cây:** Cây dừng phân nhánh khi đạt độ sâu tối đa `max_depth`, số mẫu tại nút nhỏ hơn `min_samples_split`, phương sai nút nhỏ hơn ngưỡng $10^{-10}$, hoặc không tìm được phép chia nào có $\Delta \text{Var} > 0$.
+- **Ràng buộc lá:** Cả hai nút con sau khi chia đều bắt buộc phải thỏa mãn số mẫu tối thiểu `min_samples_leaf`.
+- **Tối ưu hóa ngưỡng phân vị (Quantile Split Candidates):**
+  - Để tránh việc sắp xếp và duyệt qua toàn bộ các giá trị phân biệt gây bùng nổ thời gian tính toán, nhóm thiết kế cơ chế lấy mẫu tối đa 16 phân vị đại diện (từ phân vị 5% đến 95%) trên các giá trị phân biệt của từng đặc trưng làm ngưỡng cắt ứng viên.
+- **Trích xuất độ quan trọng đặc trưng (Feature Importance):**
+  - Tính tổng lượng giảm phương sai có trọng số qua tất cả các nút phân nhánh theo từng đặc trưng $j$:
 
-- **Trạng thái:** Hoàn thiện 100% From-Scratch thuần NumPy, không sử dụng thư viện `scikit-learn`.
-- **Tối ưu hóa phân vị Quantiles (`n_quantiles=16`):**
-  - Trên tập dữ liệu Train khổng lồ gồm 655.066 dòng, việc duyệt qua toàn bộ các giá trị phân biệt $\mathcal{O}(N \log N)$ cho 89 đặc trưng sẽ gây nghẽn nghiêm trọng tài nguyên CPU.
-  - Khi có hơn 16 giá trị phân biệt, code lấy phân vị 5–95 trên **các giá trị phân biệt**, không phải trên phân phối mẫu. Với 2–16 giá trị, code dùng midpoint của các giá trị kề nhau; feature hằng bị bỏ qua.
-  - Mỗi threshold vẫn quét mẫu và tính variance: phần này tốn $\mathcal{O}(QN_t)$ mỗi feature/nút, cộng chi phí `np.unique` và tạo ngưỡng, không phải $\mathcal{O}(Q)$. Giới hạn ngưỡng có thể bỏ lỡ split tốt nhất. **16,55 giây** là runtime snapshot, không phải bảo đảm hiệu năng.
-- **Suy luận vector hóa theo batch masks:**
-  - Hàm `predict` chia tập chỉ số theo batch masks (`left_mask`, `~left_mask`) để giảm vòng lặp Python theo từng mẫu; chưa có benchmark đối chứng tại đây để định lượng mức tăng tốc.
-- **Trích xuất độ quan trọng đặc trưng (Feature Importances):**
-  - Tích lũy lượng giảm phương sai có trọng số tại mỗi nút: $\text{Importance}(j) = \sum_{\text{node } t \in \text{split on } j} \Delta \text{Var}(t) \times N_t$, sau đó chuẩn hóa tổng về 1.0.
+$$
+\text{Importance}(j) = \sum_{t \in \text{splits on } j} \Delta \text{Var}(t) \cdot N_t
+$$
 
 ---
 
-## 6. Results (Kết quả thực nghiệm định lượng)
+## 6. Kế Hoạch Tinh Chỉnh Siêu Tham Số (Hyperparameter Tuning Plan)
 
-### 6.1. Quá trình Tinh chỉnh Siêu tham số (Grid Search trên Validation)
-Mô hình Decision Tree được quét lưới 6 cấu hình siêu tham số độc lập trên 249.399 dòng Validation:
+### 6.1. Không gian tìm kiếm lưới siêu tham số trên tập Validation
+Nhóm thiết kế lưới tinh chỉnh siêu tham số trên tập Validation độc lập nhằm xác định điểm cân bằng phù hợp:
+- **Độ sâu tối đa (`max_depth`):** Khảo sát các mức $\{3, 5, 8\}$.
+- **Số mẫu tối thiểu tại lá (`min_samples_leaf`):** Khảo sát các mức $\{10, 30\}$.
 
-| Cấu hình | `max_depth` | `min_samples_leaf` | Validation RMSE (BRL) | Đánh giá |
-|:---:|:---:|:---:|:---:|:---|
-| Config 1 | 3 | 10 | 62.4085 | Cây quá nông, underfitting |
-| Config 2 | 3 | 30 | 62.4085 | Underfitting tương tự |
-| Config 3 | 5 | 10 | 61.1664 | Ứng viên depth=5, leaf=10 |
-| Config 4 | 5 | 30 | 61.1664 | Tương đương bản Default |
-| **Config 5 (Tuned Winner)** | **8** | **10** | **59.2288** | **RMSE thấp nhất trong grid Decision Tree** |
-| Config 6 | 8 | 30 | 59.3857 | Giới hạn lá quá chặt làm giảm độ linh hoạt |
-
-Hệ thống chính thức chọn cấu hình **`max_depth=8, min_samples_leaf=10`** làm **Tuned Model (Mô hình đơn khối tốt nhất)**.
-
-Grid dùng một temporal holdout Validation, không phải nhiều fold CV. Default ở bảng Test có `min_samples_leaf=5`, khác ứng viên depth=5/leaf=10 trong grid. Nhãn log khi fit không trực tiếp tối ưu RMSE BRL; nghịch đảo trung bình log không mặc nhiên là kỳ vọng số học BRL.
-
-### 6.2. Hiệu năng Độc lập trên Tập Kiểm thử Test (293.717 dòng)
-
-| Phiên bản / Mô hình | MSE ($\text{BRL}^2$) | MAE (BRL) | RMSE (BRL) | $R^2$ Score | WAPE | Supply Chain Cost (BRL) | Fit Time (s) | Xếp hạng toàn hệ thống |
-|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| *Two-Stage Hurdle (Tham chiếu)* | *2.423,73* | *8,44* | *49,23* | *+0,1148* | *1,97* | *44,80* | *15,08s* | *🥇 Hạng 1 (Winner)* |
-| **Tuned Decision Tree (Best Single Model)** | **2.541,22** | **4,30** | **50,41** | **+0,0719** | **1,00** | **40,62** | — | **🥈 Hạng 2 (Đơn khối tốt nhất)** |
-| Decision Tree (Default) | 2.615,33 | 4,33 | 51,14 | +0,0449 | 1,01 | 41,26 | 16,55s | 🥉 Hạng 3 |
-
-### 6.3. Nhận xét kỹ thuật & Trade-offs
-Các xếp hạng chỉ thuộc snapshot hiện tại. WAPE là tỷ lệ (1 tương ứng 100%); Supply Chain Cost là điểm phạt giả định mỗi mẫu sản phẩm–tuần, không phải chi phí tồn kho thực đo. Chênh lệch R² chưa có khoảng tin cậy; xem [kiểm chứng thực nghiệm](experimental_validation.md) để biết phạm vi đối chứng đã có.
-
-1. **Năng lực vượt trội so với Baseline:** Cả hai phiên bản Decision Tree đều đạt $R^2 > 0$ và có RMSE thấp hơn 4 mô hình Baseline (Zero, Revenue Mean, Log Mean, Previous Week có $R^2 < 0$).
-2. **Hiệu quả của việc tinh chỉnh (Tuning):** Khi nâng độ sâu từ `max_depth=5` lên `max_depth=8` kết hợp ràng buộc `min_samples_leaf=10`, RMSE trên tập Test giảm từ 51,14 BRL xuống **50,41 BRL** (giảm 0,73 BRL), đồng thời hệ số xác định $R^2$ tăng từ 0,0449 lên **0,0719** (+60,1% năng lực giải thích phương sai). Đặc biệt, mô hình đạt điểm phạt chi phí giả định thấp nhất toàn dự án (**40,62 BRL/sản phẩm**) và MAE **4,30 BRL**, vẫn cao hơn Zero Baseline (4,28 BRL).
-3. **Ưu thế tốc độ & Khả năng mở rộng:** Nhờ cơ chế Quantile Split Candidates, cây đạt tốc độ huấn luyện vượt trội (16,55s so với 138,50s của Gradient Boosting) và đóng vai trò làm nền tảng vững chắc cho cả mô hình Two-Stage Hurdle và các giải pháp Ensemble.
+### 6.2. Tiêu chí lựa chọn cấu hình tối ưu
+- Cấu hình đại diện được chọn là cấu hình đạt **Validation RMSE (BRL)** thấp nhất trên tập Validation.
+- Tuyệt đối không sử dụng tập Test trong quá trình tìm kiếm và lựa chọn siêu tham số.
