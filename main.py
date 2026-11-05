@@ -3,8 +3,8 @@ main.py - Điểm vào (Entry Point) Điều Phối Toàn Bộ Quy Trình Dự �
 ====================================================================================
 Thực thi trơn tru khép kín 10 bước chuẩn mực (From-Scratch 100% thuần NumPy):
   1. Nạp và Khám phá Dữ liệu Giao dịch Olist (src.data.loader)
-  2. Làm sạch và kiểm tra nguồn item (src.data.builder)
-  3. Tạo weekly panel, lag và rolling từ lịch sử (src.data.builder)
+  2. Lọc và kiểm tra hợp lệ dữ liệu giao dịch thô (src.data.builder)
+  3. Tổng hợp bảng chuỗi thời gian sản phẩm-tuần (src.data.builder)
   4. Trực quan hóa Khám phá Dữ liệu EDA Đa chiều (src.evaluation.visualization)
   5. Phân chia Chuỗi thời gian 8:1:1 & Chuẩn hóa Ma trận Đặc trưng (Temporal Split)
   6. Huấn luyện 4 Thuật toán Hồi quy From-Scratch (src.models.regressors)
@@ -20,7 +20,7 @@ import argparse
 import json
 import hashlib
 from pathlib import Path
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Optional
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp
@@ -93,24 +93,30 @@ def step_1_load_and_explore(data_path: Path) -> pd.DataFrame:
 
 
 def step_2_clean_and_preprocess(df: pd.DataFrame) -> pd.DataFrame:
-    """BƯỚC 2: Làm sạch nguồn item trước aggregation, chưa fit thống kê."""
-    print_section_header("Làm sạch và kiểm tra dữ liệu nguồn", step_num=2)
+    """BƯỚC 2: Lọc và kiểm tra hợp lệ dữ liệu giao dịch thô (Data Sanitization, chưa tiền xử lý ML)."""
+    print_section_header("Lọc và kiểm tra hợp lệ dữ liệu giao dịch thô", step_num=2)
     cleaned_df = builder.clean_weekly_source_data(df)
     logger.info(f"Nguồn hợp lệ: {len(cleaned_df):,} dòng sản phẩm; loại {len(df)-len(cleaned_df):,} dòng; không kẹp biến mục tiêu.")
     return cleaned_df
 
+# Alias rõ nghĩa đúng bản chất kỹ thuật
+step_2_sanitize_source_data = step_2_clean_and_preprocess
+
 
 def step_3_feature_engineering(cleaned_df: pd.DataFrame) -> pd.DataFrame:
-    """BƯỚC 3: Aggregation sản phẩm–tuần và lịch sử lag/rolling."""
-    print_section_header("Tạo weekly panel và đặc trưng lịch sử", step_num=3)
+    """BƯỚC 3: Tổng hợp bảng chuỗi thời gian sản phẩm-tuần (Weekly Panel Construction, chưa fit tiền xử lý)."""
+    print_section_header("Tổng hợp bảng chuỗi thời gian sản phẩm-tuần", step_num=3)
     featured_df = builder.build_weekly_sales_dataset(cleaned_df)
-    logger.info(f"Dữ liệu tuần: {len(featured_df):,} mẫu sản phẩm–tuần; mục tiêu là doanh thu tuần kế tiếp (BRL); giữ nguyên tuần không bán.")
+    logger.info(f"Dữ liệu tuần: {len(featured_df):,} mẫu sản phẩm-tuần; mục tiêu là doanh thu tuần kế tiếp (BRL); giữ nguyên tuần không bán.")
     return featured_df
+
+# Alias rõ nghĩa đúng bản chất kỹ thuật
+step_3_build_weekly_panel = step_3_feature_engineering
 
 
 def step_4_eda_visualizations(df: pd.DataFrame) -> None:
-    """BƯỚC 4: Trực quan hóa Khám phá Dữ liệu EDA Đa chiều (8 Biểu đồ chuẩn mực)"""
-    print_section_header("Trực quan hóa Khám phá Dữ liệu EDA", step_num=4)
+    """BƯỚC 4: Trực quan hóa Khám phá Dữ liệu EDA trên Toàn bộ Bảng Dữ liệu Panel"""
+    print_section_header("Trực quan hóa Khám phá Dữ liệu EDA (Toàn bộ Dữ liệu)", step_num=4)
     figs_dir = config.FIGURES_DIR
     nb_figs_dir = config.NOTEBOOK_FIGURES_DIR
     figs_dir.mkdir(parents=True, exist_ok=True)
@@ -118,13 +124,18 @@ def step_4_eda_visualizations(df: pd.DataFrame) -> None:
 
     if "last_week_sales" in df:
         import matplotlib.pyplot as plt
-        visualization.plot_target_sales_distribution(df, save_path=figs_dir / "weekly_target_distribution.png")
+        visualization.plot_target_sales_distribution(
+            df,
+            save_path=[figs_dir / "weekly_target_distribution.png", nb_figs_dir / "weekly_target_distribution.png"]
+        )
         totals = df.groupby(config.TIMESTAMP_COLUMN)[config.TARGET_COLUMN].sum()
         fig, ax = plt.subplots(figsize=(10, 4))
-        totals.plot(ax=ax, title="Train weekly product revenue", ylabel="BRL")
+        totals.plot(ax=ax, title="Weekly product revenue across time (Full Panel)", ylabel="BRL")
         fig.tight_layout()
         fig.savefig(figs_dir / "weekly_revenue.png", dpi=config.FIGURE_DPI)
+        fig.savefig(nb_figs_dir / "weekly_revenue.png", dpi=config.FIGURE_DPI)
         plt.close(fig)
+        logger.info(f"✓ Đã lưu biểu đồ EDA toàn cảnh vào: {figs_dir}")
         return
 
     eda_tasks = [
@@ -144,15 +155,50 @@ def step_4_eda_visualizations(df: pd.DataFrame) -> None:
     logger.info(f"✓ Đã lưu toàn bộ 7 biểu đồ EDA vào: {figs_dir}")
 
 
+def step_split_temporal_data(
+    df: pd.DataFrame
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Phân chia Chuỗi thời gian 8:1:1 theo order_purchase_timestamp TRƯỚC khi tiền xử lý."""
+    print_section_header("Phân chia Chuỗi Thời Gian 8:1:1 (Temporal Split)", step_num="Split")
+    logger.info("Thực hiện phân chia Temporal Split 8:1:1 theo mốc thời gian order_purchase_timestamp...")
+    train_df, val_df, test_df = preprocessing.weekly_split_data(df)
+
+    logger.info(f"  • Tập Train (80%): {train_df.shape[0]:,} dòng (từ {train_df[config.TIMESTAMP_COLUMN].min()} đến {train_df[config.TIMESTAMP_COLUMN].max()})")
+    logger.info(f"  • Tập Val   (10%): {val_df.shape[0]:,} dòng (từ {val_df[config.TIMESTAMP_COLUMN].min()} đến {val_df[config.TIMESTAMP_COLUMN].max()})")
+    logger.info(f"  • Tập Test  (10%): {test_df.shape[0]:,} dòng (từ {test_df[config.TIMESTAMP_COLUMN].min()} đến {test_df[config.TIMESTAMP_COLUMN].max()})")
+
+    # Xuất biểu đồ kiểm chứng phân chia chuỗi thời gian
+    logger.info("Đang xuất biểu đồ: [Phân bố Mẫu Phân chia Chuỗi thời gian (Temporal Split 8:1:1)]...")
+    visualization.plot_temporal_split_distribution(
+        train_df=train_df,
+        val_df=val_df,
+        test_df=test_df,
+        save_path=[config.FIGURES_DIR / "eda_temporal_split_distribution.png", config.NOTEBOOK_FIGURES_DIR / "eda_temporal_split_distribution.png"]
+    )
+    return train_df, val_df, test_df
+
+
 def step_5_split_and_pipeline(
-    df: pd.DataFrame,
-    force_reprocess: bool = False
+    df: Optional[pd.DataFrame] = None,
+    force_reprocess: bool = False,
+    train_df: Optional[pd.DataFrame] = None,
+    val_df: Optional[pd.DataFrame] = None,
+    test_df: Optional[pd.DataFrame] = None
 ) -> Tuple[Any, Any, Any, np.ndarray, np.ndarray, np.ndarray, Any]:
-    """BƯỚC 5: Phân chia Chuỗi thời gian 8:1:1 & Chuẩn hóa Ma trận Đặc trưng"""
-    print_section_header("Phân chia Chuỗi Thời Gian 8:1:1 & Fit Pipeline", step_num=5)
+    """BƯỚC 5: Tiền xử lý & Kỹ nghệ Đặc trưng (Fit DUY NHẤT trên Train, Transform sang Val & Test)"""
+    print_section_header("Fit CustomDataPipeline trên Train & Transform Val/Test", step_num=5)
+
+    if train_df is None or val_df is None or test_df is None:
+        if df is None:
+            raise ValueError("Cần cung cấp df hoặc đủ bộ 3 (train_df, val_df, test_df).")
+        logger.info("Chưa chia trước tập dữ liệu. Thực hiện phân chia Temporal Split 8:1:1...")
+        train_df, val_df, test_df = preprocessing.weekly_split_data(df)
+        source_df_for_fp = df
+    else:
+        source_df_for_fp = df if df is not None else pd.concat([train_df, val_df, test_df], ignore_index=True)
 
     # Kiểm tra xem đã có cache data đã xử lý chưa
-    fingerprint = preprocessing_fingerprint(df)
+    fingerprint = preprocessing_fingerprint(source_df_for_fp)
     manifest_path = config.PROCESSED_DATA_DIR / "cache_manifest.json"
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -181,33 +227,22 @@ def step_5_split_and_pipeline(
         logger.info(f"✓ Nạp xong ma trận trong {time.time() - t0:.2f}s: X_train={X_train.shape}, X_val={X_val.shape}, X_test={X_test.shape}")
         return X_train, X_val, X_test, y_train, y_val, y_test, pipeline
 
-    logger.info("Thực hiện phân chia Temporal Split 8:1:1 theo order_purchase_timestamp...")
-    # Chia theo tuần target riêng biệt, không chia theo số dòng sản phẩm.
-    train_df, val_df, test_df = preprocessing.weekly_split_data(df)
-
     logger.info(f"  • Tập Train (80%): {train_df.shape[0]:,} dòng")
     logger.info(f"  • Tập Val   (10%): {val_df.shape[0]:,} dòng")
     logger.info(f"  • Tập Test  (10%): {test_df.shape[0]:,} dòng")
 
-    # Xuất biểu đồ kiểm chứng phân chia chuỗi thời gian
-    logger.info("Đang xuất biểu đồ: [Phân bố Mẫu Phân chia Chuỗi thời gian (Temporal Split 8:1:1)]...")
-    visualization.plot_temporal_split_distribution(
-        train_df=train_df,
-        val_df=val_df,
-        test_df=test_df,
-        save_path=[config.FIGURES_DIR / "eda_temporal_split_distribution.png", config.NOTEBOOK_FIGURES_DIR / "eda_temporal_split_distribution.png"]
-    )
-
-    # Fit Pipeline trên Train
-    logger.info("Khởi tạo và Fit CustomDataPipeline trên tập Train...")
+    # Fit Pipeline CHỈ TRÊN Train
+    logger.info("Khởi tạo và Fit CustomDataPipeline DUY NHẤT trên tập Train (tránh rò rỉ dữ liệu)...")
     pipeline = preprocessing.CustomDataPipeline(
         num_cols=config.WEEKLY_NUMERICAL_COLS, cat_cols=config.WEEKLY_CATEGORICAL_COLS,
         outlier_cols=[], use_log_target=True,
         feature_engineer=feature_engineering.WeeklySalesFeatureEngineer())
     pipeline.fit(train_df)
     pipeline.forecast_granularity_ = "product_week"
-    pipeline.default_forecast_week_ = str(df[config.TIMESTAMP_COLUMN].max() + pd.Timedelta(weeks=1))
+    max_ts = max(train_df[config.TIMESTAMP_COLUMN].max(), test_df[config.TIMESTAMP_COLUMN].max())
+    pipeline.default_forecast_week_ = str(max_ts + pd.Timedelta(weeks=1))
 
+    logger.info("Transform độc lập sang Train, Val và Test bằng tham số đã học từ Train...")
     res_tr = pipeline.transform(train_df)
     X_train = res_tr[0] if isinstance(res_tr, tuple) else res_tr
     res_v = pipeline.transform(val_df)
@@ -247,6 +282,7 @@ def step_5_split_and_pipeline(
     logger.info(f"✓ Đã lưu cache tiền xử lý & artifacts notebook vào: {config.PROCESSED_DATA_DIR}")
 
     return X_train, X_val, X_test, y_train, y_val, y_test, pipeline
+
 
 
 def step_6_train_models(
@@ -599,21 +635,27 @@ def main() -> None:
     # Bước 1: Nạp & Khám phá Dữ liệu
     raw_df = step_1_load_and_explore(config.RAW_DATA_FILE)
 
-    # Bước 2 & 3: Tiền xử lý & Kỹ nghệ đặc trưng
+    # Bước 2 & 3: Lọc giao dịch thô & Tổng hợp bảng chuỗi thời gian tuần (Weekly Panel)
     cleaned_items = step_2_clean_and_preprocess(raw_df)
     cleaned_df = step_3_feature_engineering(cleaned_items)
 
-    # Bước 4: EDA Biểu đồ phân tích
+    # Bước 4: Khám phá Dữ liệu EDA trên TOÀN BỘ dữ liệu panel
     if not args.skip_eda:
-        eda_train, _, _ = preprocessing.weekly_split_data(cleaned_df)
-        step_4_eda_visualizations(eda_train)
+        logger.info("Thực hiện Khám phá Dữ liệu EDA trên toàn bộ bảng dữ liệu sản phẩm-tuần...")
+        step_4_eda_visualizations(cleaned_df)
     else:
         logger.info("⏩ Bỏ qua bước EDA theo cờ --skip-eda")
 
-    # Bước 5: Phân chia Temporal 8:1:1 & Fit Data Pipeline
+    # Phân chia Chuỗi thời gian 8:1:1 TRƯỚC khi tiền xử lý đặc trưng
+    train_df, val_df, test_df = step_split_temporal_data(cleaned_df)
+
+    # Bước 5: Tiền xử lý & Kỹ nghệ đặc trưng (Fit DUY NHẤT trên Train, Transform sang Val & Test)
     X_train, X_val, X_test, y_train, y_val, y_test, pipeline = step_5_split_and_pipeline(
         df=cleaned_df,
-        force_reprocess=args.force_reprocess
+        force_reprocess=args.force_reprocess,
+        train_df=train_df,
+        val_df=val_df,
+        test_df=test_df
     )
 
     # Nạp danh sách tên đặc trưng nếu có

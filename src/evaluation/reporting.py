@@ -50,7 +50,7 @@ Mô hình tuần được chọn bằng Validation: **{selected}**, Validation R
 Chế độ huấn luyện tuần: **{mode}**. Thời điểm huấn luyện tuần được ghi trong metadata: `{bundle['metadata'].get('timestamp', 'unknown')}`.
 Đây là snapshot của lần chạy đã lưu, không trộn số liệu từ lần chạy khác.
 
-### 4.1. Dự báo sản phẩm–tuần (Test, BRL)
+### 4.1. Dự báo sản phẩm-tuần (Test, BRL)
 
 {markdown_table(weekly)}
 

@@ -49,7 +49,7 @@ def clean_weekly_source_data(items: pd.DataFrame) -> pd.DataFrame:
 
 
 def build_weekly_sales_dataset(items: pd.DataFrame, reviews: pd.DataFrame = None) -> pd.DataFrame:
-    """Mỗi dòng là một sản phẩm–tuần; đầu vào chỉ dùng những tuần trước target.
+    """Mỗi dòng là một sản phẩm-tuần; đầu vào chỉ dùng những tuần trước target.
 
     Giữ tuần không bán sau lần bán đầu đến tuần đầy đủ cuối cùng.
     Doanh thu là tổng giá các item, không gồm phí vận chuyển và dữ liệu mô phỏng.

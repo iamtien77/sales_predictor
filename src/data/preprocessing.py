@@ -361,7 +361,13 @@ def compare_splits_temporal_vs_random(df: pd.DataFrame) -> pd.DataFrame:
 class CustomDataPipeline:
     """
     Đóng gói toàn bộ Pipeline tiền xử lý From-Scratch theo chuẩn Hướng Đối Tượng (OOP).
-    Có thể lưu và tái sử dụng cho Inference / Deployment.
+    
+    Nguyên tắc cốt lõi trong Học Máy:
+    - Luôn chia dữ liệu (Train/Validation/Test Split) TRƯỚC khi tiền xử lý.
+    - CustomDataPipeline chỉ được `fit` duy nhất trên tập Train (train_df).
+    - Các tập Validation và Test chỉ được `transform` dựa trên tham số đã học từ Train
+      (giá trị trung vị imputer, ngưỡng capper, category vocabulary, mean/std scaler),
+      triệt tiêu hoàn toàn nguy cơ rò rỉ dữ liệu (Data Leakage).
     """
     def __init__(
         self,

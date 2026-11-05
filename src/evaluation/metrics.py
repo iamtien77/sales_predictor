@@ -212,7 +212,7 @@ def evaluate_business_subgroups(
 ) -> pd.DataFrame:
     """
     Đánh giá chi tiết hiệu năng mô hình trên 4 phân nhóm kinh doanh:
-    1. Toàn bộ mẫu sản phẩm–tuần (All Samples)
+    1. Toàn bộ mẫu sản phẩm-tuần (All Samples)
     2. Tuần thực sự có phát sinh doanh số (Positive Sales Weeks: y > 0)
     3. Tuần không có doanh số (Zero Sales Weeks: y == 0)
     4. Nhóm sản phẩm chưa xuất hiện trong tập Train (Unseen Products)
@@ -226,7 +226,7 @@ def evaluate_business_subgroups(
         is_zero_mask = (yt <= 0.0)
 
     groups = [
-        ("Toàn bộ sản phẩm–tuần (All Samples)", np.ones_like(yt, dtype=bool)),
+        ("Toàn bộ sản phẩm-tuần (All Samples)", np.ones_like(yt, dtype=bool)),
         ("Tuần có doanh thu (y > 0)", is_positive_mask),
         ("Tuần không có doanh thu (y == 0)", is_zero_mask),
     ]

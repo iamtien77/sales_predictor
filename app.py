@@ -25,7 +25,7 @@ with st.expander("Thông tin mô hình, kiến trúc và giới hạn kỹ thu�
     st.markdown("""
     - **Cấp độ triển khai:** Local Interactive Demo & Verification Prototype phục vụ thẩm định học thuật và kiểm chứng cục bộ.
     - **Bản chất Hurdle:** Nhân xác suất bán với dự báo dương nghịch đảo từ log; không mặc nhiên là kỳ vọng số học của doanh thu.
-    - **Giới hạn dữ liệu:** Dữ liệu Olist lịch sử (2016–2018). Các tuần không bán chưa phân biệt được giữa hết hàng tồn kho (*Stockout*) và không có nhu cầu (*Zero Demand*).
+    - **Giới hạn dữ liệu:** Dữ liệu Olist lịch sử (2016-2018). Các tuần không bán chưa phân biệt được giữa hết hàng tồn kho (*Stockout*) và không có nhu cầu (*Zero Demand*).
     """)
 
 single, batch, promo_tab, cold_start_tab, marketing_tab = st.tabs([
