@@ -1,0 +1,1368 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Báo cáo bài lab – Dự báo doanh thu bán hàng theo tuần (Weekly Sales Predictor)</title>
+<script>
+window.MathJax = {
+  tex: {
+    inlineMath: [['$', '$'], ['\\(', '\\)']],
+    displayMath: [['$$', '$$'], ['\\[', '\\]']]
+  }
+};
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+:root {
+  color-scheme: light;
+  --ink: #1f2d3d;
+  --muted: #52637a;
+  --accent: #1e5966;
+  --accent-light: #eaf2f5;
+  --line: #d1dde5;
+  --soft: #f4f8fa;
+  --card-bg: #ffffff;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 20px; }
+body {
+  margin: 0;
+  background: #e9eff2;
+  color: var(--ink);
+  font: 16px/1.75 "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+}
+.paper {
+  max-width: 1140px;
+  margin: 28px auto;
+  padding: 48px 56px;
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+}
+header {
+  border-bottom: 3px solid var(--accent);
+  padding-bottom: 25px;
+}
+.eyebrow {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+h1 {
+  font-size: 2.2rem;
+  line-height: 1.25;
+  margin: 10px 0 16px;
+  color: #143540;
+}
+h2 {
+  font-size: 1.45rem;
+  line-height: 1.4;
+  margin: 40px 0 16px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+  color: #1a4350;
+}
+h3 {
+  font-size: 1.15rem;
+  margin: 26px 0 10px;
+  color: var(--accent);
+}
+p { margin: 0 0 14px; }
+li { margin-bottom: 8px; }
+ul, ol { padding-left: 24px; }
+ol.steps { padding-left: 20px; }
+ol.steps li { margin-bottom: 12px; }
+.subtitle {
+  font-size: 1.15rem;
+  color: var(--muted);
+  font-weight: 400;
+  margin-bottom: 16px;
+}
+.source, figcaption, footer {
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+a {
+  color: #125e8a;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+nav {
+  padding: 18px 24px 20px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  margin: 28px 0;
+}
+nav h2 {
+  margin-top: 0;
+  font-size: 1.15rem;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+nav ol {
+  columns: 2;
+  column-gap: 36px;
+  margin: 10px 0 0;
+  padding-left: 20px;
+}
+nav li {
+  break-inside: avoid;
+  margin-bottom: 6px;
+}
+.note, .qa {
+  background: #f1f6f8;
+  border-left: 4px solid var(--accent);
+  padding: 16px 20px;
+  margin: 22px 0;
+  border-radius: 0 6px 6px 0;
+}
+.qa p { margin: 8px 0 0; }
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 20px 0;
+}
+.meta span {
+  background: var(--soft);
+  padding: 6px 12px;
+  font-size: 0.86rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 20px 0;
+}
+.flow span {
+  padding: 10px 14px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 0.92rem;
+  text-align: center;
+}
+.flow b {
+  color: var(--accent);
+  font-size: 1.2rem;
+}
+code {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.9em;
+  background: #edf2f5;
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+pre {
+  padding: 16px 20px;
+  background: #edf2f5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 0.9em;
+}
+pre code {
+  padding: 0;
+  background: transparent;
+}
+.formula {
+  background: #faf9f5;
+  border: 1px solid #e8e2d5;
+  border-left: 4px solid #bfa15f;
+  padding: 16px 22px;
+  margin: 20px 0;
+  border-radius: 0 6px 6px 0;
+  line-height: 1.9;
+}
+.table-wrap {
+  overflow-x: auto;
+  margin: 20px 0;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  margin: 18px 0;
+}
+.table-wrap table { margin: 0; }
+caption {
+  text-align: left;
+  font-weight: 600;
+  padding-bottom: 8px;
+  color: var(--muted);
+}
+th, td {
+  border: 1px solid var(--line);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+thead th {
+  background: #e9f0f3;
+  color: #173b47;
+  font-weight: 600;
+}
+tbody tr:nth-child(even) {
+  background: #fbfdfe;
+}
+.matrix td {
+  text-align: center;
+}
+figure {
+  margin: 26px 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 16px;
+  background: #fafcff;
+}
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: auto;
+  border-radius: 4px;
+}
+figcaption {
+  padding-top: 10px;
+  text-align: center;
+}
+footer {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+@media (max-width: 768px) {
+  body { font-size: 15px; }
+  .paper { margin: 0; padding: 24px 18px; border: 0; border-radius: 0; }
+  h1 { font-size: 1.8rem; }
+  h2 { font-size: 1.3rem; }
+  nav ol { columns: 1; }
+  .flow { gap: 8px; }
+  .flow span { width: auto; max-width: none; font-size: 0.85rem; padding: 8px 10px; }
+  th, td { padding: 7px; }
+  table { font-size: 0.8rem; }
+}
+
+@media print {
+  @page { size: A4; margin: 16mm 14mm; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  body { background: #fff; font-size: 10pt; line-height: 1.5; color: #000; }
+  .paper { max-width: none; margin: 0; padding: 0; border: 0; box-shadow: none; }
+  h1 { font-size: 20pt; }
+  h2 { font-size: 14pt; page-break-after: avoid; }
+  h3 { font-size: 11pt; page-break-after: avoid; }
+  h1, h2, h3, caption { break-after: avoid; }
+  tr, figure, .qa, .formula, .note { break-inside: avoid; }
+  thead { display: table-header-group; }
+  table { font-size: 8.5pt; }
+  th, td { padding: 5px 8px; }
+  pre { font-size: 8pt; }
+  a { color: inherit; text-decoration: none; }
+  img { max-height: 160mm; object-fit: contain; }
+  nav { display: none; }
+  .flow { display: flex !important; flex-wrap: wrap !important; gap: 6px 8px !important; align-items: center !important; margin: 12px 0 !important; page-break-inside: avoid; break-inside: avoid; }
+  .flow span { display: inline-block !important; width: auto !important; max-width: none !important; padding: 6px 10px !important; font-size: 8.5pt !important; border: 1px solid #c8d3d9 !important; background: #f4f8fa !important; border-radius: 4px !important; text-align: center !important; }
+  .flow b { display: inline-block !important; color: #1e5966 !important; font-size: 9.5pt !important; margin: 0 2px !important; }
+  .note, .qa { background: #f1f6f8 !important; border-left: 4px solid #1e5966 !important; }
+  .formula { background: #faf9f5 !important; border: 1px solid #e8e2d5 !important; border-left: 4px solid #bfa15f !important; }
+}
+</style>
+</head>
+<body>
+<div class="paper">
+
+<header>
+  <div class="eyebrow">Báo cáo thực hành môn học (Lab Report) – Học máy & Chuỗi thời gian</div>
+  <h1>Dự báo doanh thu bán hàng theo tuần (Weekly Sales Predictor)</h1>
+  <p class="subtitle">Nghiên cứu, cài đặt từ đầu (From-Scratch bằng NumPy) và đánh giá thực nghiệm các mô hình hồi quy chuỗi thời gian nhu cầu thưa (Intermittent Demand) trên tập dữ liệu thương mại điện tử Olist (Brazil)</p>
+  <div class="meta">
+    <span><b>Phạm vi:</b> Bài lab học tập From-Scratch</span>
+    <span><b>Môi trường:</b> Python 3.12.10 | NumPy thuần | SciPy Sparse</span>
+    <span><b>Tập dữ liệu:</b> Olist E-commerce (~1,2M bản ghi Product-Week)</span>
+    <span><b>Mô hình tối ưu:</b> Two-Stage Hurdle Regressor (Validation RMSE: 55.94 BRL)</span>
+    <span><b>Vị trí báo cáo:</b> <code>docs/reports/report.html</code></span>
+  </div>
+</header>
+
+<nav>
+  <h2>Mục lục nội dung</h2>
+  <ol>
+    <li><a href="#sec-1">Đặt vấn đề và tiêu chí đánh giá bài lab</a></li>
+    <li><a href="#sec-2">Thiết kế chương trình và luồng xử lý dữ liệu</a></li>
+    <li><a href="#sec-3">Nạp, kiểm toán dữ liệu và phân tách chuỗi thời gian</a></li>
+    <li><a href="#sec-4">Xây dựng Weekly Panel và xử lý dữ liệu thưa</a></li>
+    <li><a href="#sec-5">Biểu diễn đặc trưng số học (Feature Engineering)</a></li>
+    <li><a href="#sec-6">Quy trình tiền xử lý một chiều (CustomDataPipeline)</a></li>
+    <li><a href="#sec-7">Nền tảng toán học của 5 thuật toán From-Scratch & Baselines</a></li>
+    <li><a href="#sec-8">Tinh chỉnh siêu tham số trên tập Validation độc lập</a></li>
+    <li><a href="#sec-9">Vòng đời huấn luyện và giám sát thực nghiệm</a></li>
+    <li><a href="#sec-10">Kết quả thực nghiệm trên tập Validation và Test</a></li>
+    <li><a href="#sec-11">Phân tích chi tiết các mẫu dự đoán sai thực tế (Error Analysis)</a></li>
+    <li><a href="#sec-12">Đóng gói, tải nạp và dịch vụ dự đoán tương tác</a></li>
+    <li><a href="#sec-13">Kiểm thử tự động và khả năng tái lập (Verification)</a></li>
+    <li><a href="#sec-14">Giới hạn của bài lab và hướng phát triển tiếp theo</a></li>
+    <li><a href="#sec-15">Hồ sơ dữ liệu và mã nguồn đối chiếu của bài lab</a></li>
+  </ol>
+</nav>
+
+<!-- ========================================================================= -->
+<!-- PHẦN 1 -->
+<!-- ========================================================================= -->
+<section id="sec-1">
+  <h2>1. Đặt vấn đề và tiêu chí đánh giá bài lab</h2>
+  <p>Trong khuôn khổ bài thực hành môn học này, mục tiêu đặt ra là giải quyết bài toán dự báo doanh thu bán hàng cấp độ sản phẩm theo chu kỳ tuần ($y_{i,t} \in \mathbb{R}_{\ge 0}$) cho sàn thương mại điện tử Olist (Brazil). Đây là bài toán kinh điển trong quản trị chuỗi cung ứng thương mại điện tử nhưng hàm chứa thách thức kỹ thuật rất lớn: <b>nhu cầu thưa gián đoạn (Intermittent / Zero-Inflated Demand)</b>.</p>
+  
+  <p>Khác với các chuỗi thời gian tài chính hay bán lẻ tại siêu thị (nơi mỗi mặt hàng đều có giao dịch đều đặn hàng ngày), phần lớn sản phẩm trên sàn thương mại điện tử thuộc nhóm "long-tail" (đuôi dài). Trong tập dữ liệu kiểm thử độc lập (Test Set) gồm <b>293.717</b> bản ghi sản phẩm–tuần, có tới <b>286.058</b> bản ghi (chiếm <b>97,39%</b>) có doanh số bằng $0\text{ BRL}$, và chỉ vỏn vẹn <b>7.659</b> bản ghi (chiếm <b>2,61%</b>) phát sinh giao dịch mua hàng thực tế.</p>
+
+  <div class="note">
+    <b>Nghịch lý chỉ số đánh giá (Metric Paradox) trong bài toán nhu cầu thưa:</b>
+    <ul>
+      <li>Nếu chỉ nhìn vào sai số tuyệt đối trung bình (MAE), một mô hình thô sơ luôn đoán doanh số bằng $0$ (Zero Baseline) sẽ đạt $\text{MAE} = 4,2792\text{ BRL}$ (thấp nhất trong tất cả các mô hình). Tuy nhiên, mô hình này hoàn toàn vô dụng cho doanh nghiệp vì không bao giờ phát hiện được khi nào có khách mua hàng.</li>
+      <li>Ngược lại, nếu chỉ tối ưu sai số toàn phương trung bình (RMSE), các mô hình học máy phức tạp sẽ bị phạt rất nặng bởi một vài đơn hàng mua sỉ đột biến có giá trị lên tới hàng nghìn BRL.</li>
+    </ul>
+  </div>
+
+  <p>Để đánh giá toàn diện và sát với thực tế vận hành chuỗi cung ứng, bài lab thống nhất thiết lập hệ thống 5 thước đo đánh giá đa chiều:</p>
+
+  <div class="formula">
+    <b>1. Sai số toàn phương trung bình (RMSE - Root Mean Squared Error):</b>
+    $$\text{RMSE} = \sqrt{\frac{1}{N}\sum_{i=1}^N (y_i - \hat{y}_i)^2}$$
+    <i>Ý nghĩa: Đo lường mức độ lệch tuyệt đối trên thang đo tiền tệ (BRL), phạt mạnh các sai số cực đoan.</i>
+  </div>
+
+  <div class="formula">
+    <b>2. Hệ số xác định trên không gian doanh thu gốc ($R^2$ Score):</b>
+    $$R^2 = 1 - \frac{\sum_{i=1}^N (y_i - \hat{y}_i)^2}{\sum_{i=1}^N (y_i - \bar{y})^2}$$
+    <i>Ý nghĩa: Tỷ lệ phương sai của biến mục tiêu được giải thích bởi mô hình. Trong không gian tiền tệ có phương sai cực lớn và nhiễu cao, $R^2 > 0$ đã là một ngưỡng cải tiến có ý nghĩa so với đường cơ sở trung bình.</i>
+  </div>
+
+  <div class="formula">
+    <b>3. Sai số phần trăm tuyệt đối có trọng số (WAPE - Weighted Absolute Percentage Error):</b>
+    $$\text{WAPE} = \frac{\sum_{i=1}^N |y_i - \hat{y}_i|}{\sum_{i=1}^N y_i}$$
+    <i>Ý nghĩa: Chuẩn đo lường bán lẻ và chuỗi cung ứng toàn cầu, giải quyết triệt để lỗi chia cho 0 của chỉ số MAPE khi phần lớn quan sát $y_i = 0$.</i>
+  </div>
+
+  <div class="formula">
+    <b>4. Ma trận chi phí chuỗi cung ứng bất đối xứng (Asymmetric Supply Chain Inventory Loss):</b>
+    Trong thực tế kinh doanh, hậu quả của việc dự báo thiếu hàng và thừa hàng là hoàn toàn không đối xứng:
+    <ul>
+      <li><b>Dự báo thiếu ($y_i > \hat{y}_i$):</b> Gây đứt gãy nguồn cung (Stockout), mất doanh thu bán hàng, mất khách hàng vào tay đối thủ và bị sàn phạt hạ bậc xếp hạng vận hành. Trọng số phạt thiết lập: $C_{\text{under}} = 10,0\text{ BRL}$ cho mỗi BRL dự báo thiếu.</li>
+      <li><b>Dự báo thừa ($\hat{y}_i > y_i$):</b> Dẫn đến ứ đọng vốn lưu động, tăng chi phí lưu kho, bảo hiểm và rủi ro giảm giá trị hàng hóa. Trọng số phạt thiết lập: $C_{\text{over}} = 2,0\text{ BRL}$ cho mỗi BRL dự báo thừa.</li>
+    </ul>
+    Hàm tổn thất tài chính trên mỗi sản phẩm–tuần được lượng hóa:
+    $$\text{Cost\_Per\_Item} = \frac{1}{N} \sum_{i=1}^N \left[ 10,0 \cdot \max(0, y_i - \hat{y}_i) + 2,0 \cdot \max(0, \hat{y}_i - y_i) \right]$$
+  </div>
+</section>
+
+<!-- ========================================================================= -->
+<!-- PHẦN 2 -->
+<!-- ========================================================================= -->
+<section id="sec-2">
+  <h2>2. Thiết kế chương trình và luồng xử lý dữ liệu</h2>
+  <p>Chương trình được thiết kế theo cấu trúc module hóa phân tầng, tách bạch rõ ràng giữa hai luồng xử lý độc lập: <strong>Luồng huấn luyện & thẩm định ngoại tuyến (Offline Batch Training Pipeline)</strong> và <strong>Luồng suy luận dự báo thời gian thực (Online Real-time Inference Pipeline)</strong>.</p>
+  
+  <h3>2.1. Luồng huấn luyện và thẩm định ngoại tuyến (Offline Training & Evaluation Pipeline)</h3>
+  <p>Luồng huấn luyện thực hiện quy trình 9 bước nghiêm ngặt từ dữ liệu thô, mở rộng lưới tuần, phân chia chuỗi thời gian, tiền xử lý đóng băng đến huấn luyện mô hình From-Scratch và đóng gói artifact:</p>
+  
+  <div class="flow" aria-label="Luồng huấn luyện và thẩm định của bài lab">
+    <span><b>6 Bảng CSV Olist thô</b><br><small>orders, items, products...</small></span><b>&rarr;</b>
+    <span><b>Lọc & Ghép nối</b><br><small>order_status == 'delivered'</small></span><b>&rarr;</b>
+    <span><b>Weekly Panel Expansion</b><br><small>1.198.182 dòng (giữ tuần 0)</small></span><b>&rarr;</b>
+    <span><b>Phân tách chuỗi thời gian</b><br><small>Temporal Split: Train 80% | Val 10% | Test 10%</small></span><b>&rarr;</b>
+    <span><b>CustomDataPipeline</b><br><small>Fit chỉ trên Train (Imputer + OHE + Scaler)</small></span><b>&rarr;</b>
+    <span><b>Huấn luyện From-Scratch</b><br><small>Linear, Trees, RF, GB, Hurdle</small></span><b>&rarr;</b>
+    <span><b>Tuning & Chọn Model trên Val</b><br><small>Two-Stage Hurdle (RMSE 55,94 BRL)</small></span><b>&rarr;</b>
+    <span><b>Kiểm định mù trên Test</b><br><small>293.717 bản ghi (RMSE 49,23 BRL)</small></span><b>&rarr;</b>
+    <span><b>Đóng gói Bundle Artifact</b><br><small>best_sales_model.pkl</small></span>
+  </div>
+
+  <h3>2.2. Luồng suy luận dự báo thời gian thực (Online Real-time Inference Pipeline)</h3>
+  <p>Khi có yêu cầu dự báo doanh thu cho một sản phẩm tại tuần $t$ (hoặc kịch bản sản phẩm mới Cold-Start / Tiếp thị) từ giao diện Streamlit hoặc API, chu trình suy luận diễn ra hoàn toàn tự động qua lớp <code>SalesPredictor</code> bằng các tham số đã đóng băng, tuyệt đối không fit lại dữ liệu:</p>
+
+  <div class="flow" aria-label="Luồng suy luận dự báo doanh thu">
+    <span><b>Thông số sản phẩm</b><br><small>Dict / DataFrame / Web Input</small></span><b>&rarr;</b>
+    <span><b>Kiểm tra & Bù khuyết quy chuẩn</b><br><small>validate_sales_prices & Cold fallback</small></span><b>&rarr;</b>
+    <span><b>Transform một chiều</b><br><small>CustomDataPipeline đã đóng băng (chỉ transform)</small></span><b>&rarr;</b>
+    <span><b>Trích xuất ma trận thưa $1 \times 89$</b><br><small>scipy.sparse.csr_matrix</small></span><b>&rarr;</b>
+    <span><b>Dự báo Two-Stage Hurdle</b><br><small>P(y>0|x) &times; s_pos(x)</small></span><b>&rarr;</b>
+    <span><b>Nghịch đảo log tiền tệ expm1()</b><br><small>max(0, exp(y_log) - 1)</small></span><b>&rarr;</b>
+    <span><b>Doanh số dự báo BRL</b><br><small>Hiển thị Dashboard & Mô phỏng kịch bản</small></span>
+  </div>
+
+  <p>Chi tiết 5 bước kỹ thuật trong chu trình suy luận thời gian thực:</p>
+  <ol class="steps">
+    <li><strong>Tiếp nhận thông số sản phẩm:</strong> Nhận cấu hình sản phẩm từ giao diện người dùng (danh mục, giá niêm yết, các biến trễ doanh số, điểm review tích lũy trong quá khứ). Với sản phẩm mới niêm yết (Cold-Start), các biến lịch sử tự động gán bằng 0 mà không lấy trung vị của tập Train để phản ánh trung thực trạng thái ban đầu.</li>
+    <li><strong>Kiểm tra quy chuẩn dữ liệu (Data Validation):</strong> Gọi <code>feature_engineering.validate_sales_prices</code> kiểm tra giá bán không âm, gán tuần dự báo mặc định nếu thiếu.</li>
+    <li><strong>Biến đổi đặc trưng một chiều (Stateful Transform):</strong> Gọi <code>pipeline.transform(df)</code> sử dụng từ điển 73 danh mục, giá trị trung vị và thông số chuẩn hóa đã lưu trong <code>best_sales_model.pkl</code>; tuyệt đối không cập nhật lại thống kê trên dữ liệu mới.</li>
+    <li><strong>Dự báo mô hình hai giai đoạn:</strong> Mô hình <code>TwoStageHurdleRegressorFromScratch</code> tính đồng thời hai thành phần: xác suất phát sinh đơn hàng $\hat{p} = P(\text{sales} > 0 \mid x)$ từ cây phân loại và độ lớn doanh thu điều kiện $\hat{s}_{\text{pos}}$ từ cây hồi quy trên tập dương.</li>
+    <li><strong>Quy đổi thang đo tiền tệ và kết xuất:</strong> Hợp nhất kết quả $\hat{s} = \hat{p} \times \hat{s}_{\text{pos}}$, kẹp ngưỡng $\max(0, \hat{s})$ để bảo đảm doanh thu không âm, chuyển về đơn vị đồng Real Brazil (BRL) và kết xuất trực quan lên các Tab của ứng dụng Streamlit (Dự báo tuần, Kịch bản giá, Kịch bản tiếp thị).</li>
+  </ol>
+
+  <h3>2.3. Bảng phân bổ trách nhiệm kiến trúc các module trong bài lab</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>Bảng 2.1: Phân công trách nhiệm kiến trúc các module trong thư mục src/</caption>
+      <thead>
+        <tr>
+          <th>Module / Tệp</th>
+          <th>Phân tầng chức năng</th>
+          <th>Trách nhiệm kỹ thuật cốt lõi</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>src/config.py</code></td>
+          <td>Cấu hình tập trung</td>
+          <td>Định nghĩa các đường dẫn tệp, phân loại danh sách biến (Numerical, Categorical, Lag, Rolling), tỷ lệ phân tách chuỗi thời gian và siêu tham số mặc định.</td>
+        </tr>
+        <tr>
+          <td><code>src/data/loader.py</code></td>
+          <td>Nhập & Kiểm toán</td>
+          <td>Tải nạp 6 bảng dữ liệu nguồn Olist, làm sạch kiểu dữ liệu ngày tháng, lọc giao dịch hoàn tất (<code>order_status == 'delivered'</code>).</td>
+        </tr>
+        <tr>
+          <td><code>src/data/builder.py</code></td>
+          <td>Kiến tạo dữ liệu chuỗi</td>
+          <td>Mở rộng lưới tích Đề-các (Cartesian Product) Sản phẩm &times; Tuần, gom cụm doanh số tuần, bù trừ tuần 0 doanh thu, forward-fill giá bán gần nhất.</td>
+        </tr>
+        <tr>
+          <td><code>src/data/feature_engineering.py</code></td>
+          <td>Kỹ thuật đặc trưng</td>
+          <td>Sinh 89 biến độc lập: trễ doanh số (lag 1, lag 2, lag 4), rolling mean/std 4 tuần, điểm đánh giá tích lũy chống rò rỉ (anti-leakage review rating), chu kỳ lượng giác tháng.</td>
+        </tr>
+        <tr>
+          <td><code>src/data/preprocessing.py</code></td>
+          <td>Tiền xử lý một chiều</td>
+          <td>Hiện thực lớp <code>CustomDataPipeline</code> đóng băng tri thức: Imputer trung vị, One-Hot Encoder, Robust/Standard Scaler chỉ fit trên Train.</td>
+        </tr>
+        <tr>
+          <td><code>src/models/</code></td>
+          <td>Thuật toán From-Scratch</td>
+          <td>Cài đặt thuần túy bằng NumPy: <code>LinearRegressionFromScratch</code>, <code>DecisionTreeRegressorFromScratch</code>, <code>RandomForestRegressorFromScratch</code>, <code>GradientBoostingRegressorFromScratch</code>, <code>TwoStageHurdleRegressorFromScratch</code>.</td>
+        </tr>
+        <tr>
+          <td><code>src/evaluation/</code></td>
+          <td>Đánh giá & Thẩm định</td>
+          <td>Tính toán bộ chỉ số đa chiều (RMSE, MAE, R2, WAPE, Inventory Cost), phân tích chi tiết 20 mẫu sai số cực đoan, kiểm thử cold-start cho sản phẩm mới niêm yết.</td>
+        </tr>
+        <tr>
+          <td><code>src/deployment/predictor.py</code></td>
+          <td>Triển khai & Phục vụ</td>
+          <td>Lớp <code>SalesPredictor</code> nhận dữ liệu thô, biến đổi qua pipeline đã đóng băng và sinh dự báo doanh thu cho ứng dụng tương tác người dùng.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ========================================================================= -->
+<!-- PHẦN 3 -->
+<!-- ========================================================================= -->
+<section id="sec-3">
+  <h2>3. Nạp, kiểm toán dữ liệu và phân tách chuỗi thời gian</h2>
+  <p>Tập dữ liệu Olist phản ánh toàn diện hoạt động thương mại điện tử thực tế tại Brazil từ tháng 09/2016 đến tháng 09/2018. Dữ liệu gốc phân bổ trên 6 bảng quan hệ chính:</p>
+  <ul>
+    <li><code>olist_orders_dataset.csv</code>: 99.441 đơn hàng với các mốc thời gian đặt hàng, phê duyệt, giao hàng và trạng thái đơn.</li>
+    <li><code>olist_order_items_dataset.csv</code>: 112.650 bản ghi chi tiết mục hàng, liên kết <code>order_id</code>, <code>product_id</code>, <code>seller_id</code>, đơn giá (<code>price</code>) và cước phí (<code>freight_value</code>).</li>
+    <li><code>olist_products_dataset.csv</code>: 32.951 sản phẩm với danh mục ngành hàng, số lượng ảnh, kích thước và khối lượng vật lý.</li>
+    <li><code>olist_order_reviews_dataset.csv</code>: 99.224 đánh giá phản hồi từ khách hàng kèm điểm số 1–5 sao và thời điểm gửi phản hồi.</li>
+    <li><code>olist_customers_dataset.csv</code> & <code>olist_sellers_dataset.csv</code>: Thông tin địa lý (bang, thành phố) của người mua và người bán.</li>
+  </ul>
+
+  <h3>Chiến lược phân tách dữ liệu chuỗi thời gian (Temporal Split) chống rò rỉ tương lai</h3>
+  <p>Một trong những sai lầm nghiêm trọng nhất khi làm bài toán chuỗi thời gian là sử dụng hàm phân tách ngẫu nhiên (như <code>train_test_split</code> hay K-Fold Cross-Validation thông thường). Việc xáo trộn ngẫu nhiên sẽ làm rò rỉ thông tin tương lai về quá khứ (Look-ahead Data Leakage): mô hình sẽ "học vẹt" doanh thu tuần sau để đoán doanh thu tuần trước, tạo ra kết quả ảo tưởng trên giấy tờ nhưng sụp đổ hoàn toàn khi triển khai thực tế.</p>
+
+  <p>Để bảo đảm tính khách quan tuyệt đối, dự án áp dụng chiến lược <b>Temporal Split</b> theo thứ tự thời gian tự nhiên với tỷ lệ <b>80% Train, 10% Validation, 10% Test</b>:</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>Bảng 3.1: Các mốc thời gian và quy mô mẫu của 3 tập phân tách độc lập</caption>
+      <thead>
+        <tr>
+          <th>Tập dữ liệu</th>
+          <th>Tỷ lệ lý thuyết</th>
+          <th>Khoảng thời gian tuần (Year-Week)</th>
+          <th>Số lượng quan sát (Product-Week)</th>
+          <th>Mục đích sử dụng</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>Train Set</b></td>
+          <td>80%</td>
+          <td>Tuần 36/2016 &rarr; Tuần 18/2018</td>
+          <td>958.545 dòng</td>
+          <td>Học trọng số mô hình và thống kê tham số tiền xử lý</td>
+        </tr>
+        <tr>
+          <td><b>Validation Set</b></td>
+          <td>10%</td>
+          <td>Tuần 19/2018 &rarr; Tuần 26/2018</td>
+          <td>119.818 dòng</td>
+          <td>Tinh chỉnh siêu tham số, điều chuẩn và lựa chọn mô hình tốt nhất</td>
+        </tr>
+        <tr>
+          <td><b>Test Set</b></td>
+          <td>10%</td>
+          <td>Tuần 27/2018 &rarr; Tuần 35/2018</td>
+          <td>293.717 dòng</td>
+          <td>Đánh giá khách quan năng lực tổng quát hóa cuối cùng (OOS)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <figure>
+    <img src="../../results/figures/eda_temporal_split_distribution.png" alt="Phân bố dữ liệu qua các mốc thời gian phân tách">
+    <figcaption>Hình 3.1: Phân bố số lượng đơn hàng và giá trị doanh số thực tế qua 3 giai đoạn Train, Validation và Test độc lập.</figcaption>
+  </figure>
+</section>
+
+<!-- ========================================================================= -->
+<!-- PHẦN 4 -->
+<!-- ========================================================================= -->
+<section id="sec-4">
+  <h2>4. Xây dựng Weekly Panel và xử lý dữ liệu thưa</h2>
+  <p>Nếu chỉ tổng hợp dữ liệu trên các tuần thực sự có giao dịch, mô hình sẽ mắc lỗi <b>Survivorship Bias (Thiên lệch kẻ sống sót)</b>. Hệ quả là mô hình luôn giả định rằng sản phẩm nào cũng bán được hàng và không thể học được phân phối xác suất khi nhu cầu rơi về 0.</p>
+
+  <p>Giải pháp kỹ thuật chuẩn mực là xây dựng một bảng <b>Weekly Panel</b> hoàn chỉnh thông qua phép tích Đề-các (Cartesian Grid) giữa danh sách toàn bộ sản phẩm và trục thời gian tuần liên tục:</p>
+
+  <div class="formula">
+    <b>Lưới tích Đề-các mở rộng chuỗi tuần:</b>
+    $$\mathcal{P} \times \mathcal{T} = \{ (p, t) \mid p \in \text{Products}, t \in [t_{\text{first\_sale}}(p), T_{\text{end}}] \}$$
+    Với mỗi cặp $(p, t)$: Nếu có đơn hàng, $s_{p,t} = \sum \text{price}$; ngược lại nếu không có giao dịch, $s_{p,t} = 0\text{ BRL}$.
+  </div>
+
+  <p>Quy trình mở rộng này nâng quy mô dữ liệu từ vài chục nghìn giao dịch rời rạc lên thành <b>1.198.182</b> dòng dữ liệu sản phẩm–tuần. Tại đây, tỷ lệ tuần không có đơn hàng chiếm hơn 97%, phản ánh chân thực bản chất của kinh doanh sàn thương mại điện tử.</p>
+
+  <h3>Biến đổi mục tiêu nén độ lệch phải bằng Logarithm ($log1p$)</h3>
+  <p>Doanh thu gốc $s \in [0, +\infty)$ có phân phối lệch phải cực đoan (Right-skewed Power-law Distribution): phần lớn bằng 0, một số ít dao động từ vài chục đến vài trăm BRL, và một lượng nhỏ đơn mua sỉ lên tới vài nghìn BRL. Nếu hồi quy trực tiếp trên thang đo tiền tệ, sai số bình phương MSE sẽ bị chi phối hoàn toàn bởi các ngoại lai này.</p>
+
+  <div class="formula">
+    <b>Hàm biến đổi và nghịch đảo mục tiêu:</b>
+    $$y = \log(1 + s) \quad \Longleftrightarrow \quad s = \exp(y) - 1 = \text{expm1}(y)$$
+    Biến đổi này bảo đảm tính chất quan trọng: khi $s = 0$ thì $y = \log(1) = 0$; đồng thời nén biên độ dao động của các giá trị nghìn BRL về thang đo $[0, 10]$, giúp hàm mục tiêu MSE hội tụ ổn định và phân phối phần dư đối xứng hơn.
+  </div>
+
+  <figure>
+    <img src="../../results/figures/target_sales_distribution.png" alt="Phân bố doanh số trước và sau khi log-transform">
+    <figcaption>Hình 4.1: Phân bố tần suất doanh thu sản phẩm theo tuần trước (lệch phải cực đoan) và sau phép biến đổi log1p.</figcaption>
+  </figure>
+</section>
+
+<!-- ========================================================================= -->
+<!-- PHẦN 5 -->
+<!-- ========================================================================= -->
+<section id="sec-5">
+  <h2>5. Biểu diễn đặc trưng số học (Feature Engineering)</h2>
+  <p>Không gian đặc trưng được thiết kế chặt chẽ gồm <b>89 biến độc lập</b>, chia thành 6 nhóm ngữ nghĩa nghiệp vụ, bảo đảm chỉ sử dụng thông tin quá khứ có sẵn trước thời điểm bắt đầu tuần dự báo $t$:</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>Bảng 5.1: Bảng phân loại 89 đặc trưng trong ma trận thiết kế</caption>
+      <thead>
+        <tr>
+          <th>Nhóm đặc trưng</th>
+          <th>Số lượng biến</th>
+          <th>Tên biến tiêu biểu</th>
+          <th>Ý nghĩa kỹ thuật & Chống rò rỉ</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>1. Trễ doanh số (Lags)</b></td>
+          <td>3 biến</td>
+          <td><code>last_week_sales</code>, <code>sales_lag_2_weeks</code>, <code>sales_lag_4_weeks</code></td>
+          <td>Ghi nhận quán tính doanh thu tại các tuần $t-1, t-2, t-4$.</td>
+        </tr>
+        <tr>
+          <td><b>2. Cửa sổ trượt (Rolling)</b></td>
+          <td>3 biến</td>
+          <td><code>sales_mean_4_weeks</code>, <code>sales_std_4_weeks</code>, <code>last_week_units</code></td>
+          <td>Trung bình động và độ biến động doanh số 4 tuần gần nhất; số lượng món đã bán tuần trước.</td>
+        </tr>
+        <tr>
+          <td><b>3. Đơn giá & Bù khuyết</b></td>
+          <td>1 biến</td>
+          <td><code>price</code></td>
+          <td>Đơn giá sản phẩm. Trong các tuần 0 doanh số, giá được <i>forward-fill</i> từ tuần bán có giao dịch gần nhất trong quá khứ.</td>
+        </tr>
+        <tr>
+          <td><b>4. Tín nhiệm & Khách hàng</b></td>
+          <td>5 biến</td>
+          <td><code>past_review_count</code>, <code>past_review_rating</code>, <code>customer_past_spend</code>, <code>customer_past_orders</code>, <code>customer_state_count</code></td>
+          <td><b>Anti-leakage:</b> Chỉ tính lũy kế các review và đơn hàng được gửi <i>trước ngày đầu tiên của tuần dự báo</i>, tuyệt đối không dùng điểm review phát sinh trong hoặc sau tuần đó.</td>
+        </tr>
+        <tr>
+          <td><b>5. Mùa vụ & Lịch dương</b></td>
+          <td>4 biến</td>
+          <td><code>weeks_since_first_sale</code>, <code>month_sin</code>, <code>month_cos</code>, <code>is_peak_shopping_season</code></td>
+          <td>Mã hóa lượng giác chu kỳ 12 tháng: $\sin(2\pi m / 12)$ và $\cos(2\pi m / 12)$ để giữ tính liên tục giữa tháng 12 và tháng 1; cờ báo mùa cao điểm Black Friday & Giáng Sinh.</td>
+        </tr>
+        <tr>
+          <td><b>6. Danh mục sản phẩm</b></td>
+          <td>73 biến</td>
+          <td><code>category_*</code> (One-Hot Encoded)</td>
+          <td>73 biến nhị phân đại diện cho 73 danh mục ngành hàng Olist (cama_mesa_banho, beleza_saude, informatica_acessorios...).</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <b>Tối ưu hóa bộ nhớ với Ma trận thưa (Sparse Matrix CSR):</b>
+    Do có tới 73 cột danh mục dạng One-Hot và phần lớn các cột trễ bằng 0, việc lưu trữ mảng NumPy Dense 89 cột trên 1,2 triệu dòng sẽ tiêu tốn hơn 1,2 GB RAM và gây tràn bộ nhớ khi nhân ma trận. Dự án chuyển đổi sang định dạng <code>scipy.sparse.csr_matrix</code>, giảm <b>80%</b> dung lượng RAM xuống còn chưa đầy 250 MB, tăng tốc độ tính toán lên gấp 4 lần.
+  </div>
+
+  <figure>
+    <img src="../../results/figures/correlation_heatmap.png" alt="Biểu đồ tương quan giữa các đặc trưng số học">
+    <figcaption>Hình 5.1: Ma trận hệ số tương quan tuyến tính Pearson giữa các đặc trưng số học chính và biến mục tiêu log_sales.</figcaption>
+  </figure>
+</section>
+
+<!-- ========================================================================= -->
+<!-- PHẦN 6 -->
+<!-- ========================================================================= -->
+<section id="sec-6">
+  <h2>6. Quy trình tiền xử lý một chiều (CustomDataPipeline)</h2>
+  <p>Để ngăn ngừa triệt để rò rỉ dữ liệu qua quá trình chuẩn hóa (Normalization Leakage), toàn bộ các phép tiền xử lý được đóng gói trong một lớp duy nhất: <code>CustomDataPipeline</code> kế thừa nguyên lý một chiều nghiêm ngặt:</p>
+
+  <div class="qa">
+    <b>Quy tắc vàng đóng băng tri thức (Strict Transformation Boundary):</b>
+    <p>Toàn bộ các tham số thống kê bao gồm:</p>
+    <ul>
+      <li>Giá trị trung vị (Median) dùng để điền khuyết thiếu cho các cột số học;</li>
+      <li>Bảng từ điển danh mục (Categories vocabulary) dùng cho One-Hot Encoding;</li>
+      <li>Kỳ vọng mẫu $\mu_{\text{train}}$ và độ lệch chuẩn mẫu $\sigma_{\text{train}}$ dùng cho StandardScaler;</li>
+    </ul>
+    <p><b>CHỈ ĐƯỢC PHÉP TÍNH TOÁN DUY NHẤT MỘT LẦN TRÊN TẬP TRAIN (80%).</b> Khi áp dụng cho tập Validation, Test hay dữ liệu dự đoán mới ngoài thực tế, pipeline chỉ được phép gọi phương thức <code>transform()</code> áp dụng lại các tham số đã đóng băng, tuyệt đối không được gọi lại <code>fit()</code>.</p>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <caption>Bảng 6.1: Các bước biến đổi tuần tự trong CustomDataPipeline</caption>
+      <thead>
+        <tr>
+          <th>Thứ tự</th>
+          <th>Bước biến đổi</th>
+          <th>Cơ chế thực hiện</th>
+          <th>Xử lý biên ngoại lệ</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Bước 1</td>
+          <td>Xử lý giá trị khuyết thiếu (Imputation)</td>
+          <td>Điền trung vị (Median) từ tập Train cho biến số học; điền 0 cho <code>past_review_rating</code> nếu sản phẩm chưa có đánh giá nào.</td>
+          <td>Nếu gặp cột bị khuyết hoàn toàn ở sản phẩm mới, điền fallback về giá trị mặc định của toàn ngành hàng.</td>
+        </tr>
+        <tr>
+          <td>Bước 2</td>
+          <td>Mã hóa biến phân loại (One-Hot Encoding)</td>
+          <td>Khớp danh sách 73 danh mục cố định từ Train thành 73 cột nhị phân $\{0, 1\}$.</td>
+          <td>Nếu xuất hiện danh mục mới chưa từng thấy (Unseen category), toàn bộ 73 cột nhị phân được gán bằng 0.</td>
+        </tr>
+        <tr>
+          <td>Bước 3</td>
+          <td>Chuẩn hóa biến số học (StandardScaler)</td>
+          <td>Chuyển đổi $z = (x - \mu_{\text{train}}) / (\sigma_{\text{train}} + \epsilon)$ với $\epsilon = 10^{-8}$.</td>
+          <td>Nếu độ lệch chuẩn $\sigma = 0$ (biến hằng số), gán $z = 0$.</td>
+        </tr>
+        <tr>
+          <td>Bước 4</td>
+          <td>Hợp nhất ma trận (Sparse Stacking)</td>
+          <td>Ghép nối các cột số học đã chuẩn hóa với các cột phân loại thưa thành <code>csr_matrix</code> 89 chiều.</td>
+          <td>Bảo đảm đúng thứ tự cột tuyệt đối theo <code>feature_names</code> đã lưu.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ========================================================================= -->
+<!-- PHẦN 7 -->
+<!-- ========================================================================= -->
+<section id="sec-7">
+  <h2>7. Nền tảng toán học của 5 thuật toán From-Scratch & Baselines</h2>
+  <p>Toàn bộ 5 thuật toán học máy và 4 mô hình cơ sở (Baselines) trong bài lab này được lập trình từ đầu (From-Scratch) hoàn toàn bằng thư viện ma trận <b>NumPy thuần túy</b>, không sử dụng các lớp mô hình có sẵn của scikit-learn. Dưới đây là cơ sở toán học và cơ chế vận hành của từng thuật toán:</p>
+
+  <h3>7.1. Mô hình hồi quy tuyến tính From-Scratch (Linear Regression with Ridge)</h3>
+  <div class="formula">
+    <b>Nghiệm giải tích phương trình chuẩn (Normal Equation):</b>
+    $$w^* = (X^T X + \alpha I)^{-1} X^T y$$
+    Để chống lại hiện tượng ma trận kỳ dị hoặc đa cộng tuyến khi ghép nối 73 cột One-Hot, thuật toán tích hợp thành phần điều chuẩn L2 cực nhỏ $\alpha = 10^{-5}$ (Ridge Regularization).
+  </div>
+  <p><b>Thất bại bùng nổ hàm mũ (Exponential Explosion):</b> Mặc dù tối ưu nghiệm MSE trên không gian log, mô hình tuyến tính hoàn toàn thất bại khi nghịch đảo về thang đo tiền tệ: $\hat{s} = \exp(w^T x) - 1$. Với một số mẫu ngoại lai có các đặc trưng lớn, giá trị tích vô hướng $w^T x$ vượt qua ngưỡng 15, khiến phép mũ $\exp(15)$ phóng đại dự báo lên hàng triệu BRL. Kết quả trên tập Test của Linear Regression bị vỡ trận: $\text{MSE} = 3,03 \times 10^7$ và $\text{RMSE} = 5.511,67\text{ BRL}$!</p>
+
+  <h3>7.2. Cây quyết định hồi quy From-Scratch (DecisionTreeRegressorFromScratch)</h3>
+  <div class="formula">
+    <b>Tiêu chí phân nhánh giảm phương sai (Variance Reduction):</b>
+    Tại mỗi nút $S$, điểm phân nhánh tối ưu $(j^*, t^*)$ trên đặc trưng $j$ tại ngưỡng $t$ được xác định nhằm cực đại hóa mức giảm phương sai:
+    $$\Delta \text{Var}(S, j, t) = \text{MSE}(S) - \left( \frac{|S_L|}{|S|} \text{MSE}(S_L) + \frac{|S_R|}{|S|} \text{MSE}(S_R) \right)$$
+    Trong đó giá trị dự báo tại nút lá là giá trị trung bình mẫu: $\hat{y}_{\text{leaf}} = \frac{1}{|S_{\text{leaf}}|} \sum_{i \in S_{\text{leaf}}} y_i$.
+  </div>
+  <div class="note">
+    <b>Tối ưu hóa hiệu năng bằng phân vị đại diện (16 Quantiles Subsampling):</b>
+    Trên tập Train gồm gần 1 triệu dòng, việc duyệt qua từng giá trị duy nhất của 89 đặc trưng để tìm điểm phân nhánh đòi hỏi hàng tỷ phép tính. Thuật toán cải tiến lấy mẫu 16 phân vị đại diện ($q \in [1/16, 2/16, \dots, 15/16]$) làm các ứng viên phân nhánh. Cải tiến này giúp thời gian huấn luyện cây giảm từ hơn 2 giờ xuống còn vỏn vẹn <b>15 giây</b> mà vẫn giữ được 99,5% độ chính xác tối ưu.
+  </div>
+
+  <h3>7.3. Rừng ngẫu nhiên From-Scratch (RandomForestRegressorFromScratch)</h3>
+  <div class="formula">
+    <b>Cơ chế đóng bao (Bagging) và lấy mẫu đặc trưng ngẫu nhiên:</b>
+    Thuật toán xây dựng một tập hợp $B$ cây quyết định độc lập:
+    $$\hat{y}_{\text{RF}}(x) = \frac{1}{B} \sum_{b=1}^B T_b(x)$$
+    Mỗi cây $T_b$ được huấn luyện trên một tập mẫu con lấy mẫu có hoàn lại (Bootstrap sample với tỷ lệ 80%), và tại mỗi nút phân nhánh chỉ được phép chọn ngẫu nhiên một tập con đặc trưng kích thước $m = \sqrt{D}$. Cơ chế này làm giảm tương quan giữa các cây, qua đó làm giảm mạnh phương sai của mô hình dự báo tổng hợp.
+  </div>
+
+  <h3>7.4. Tăng cường độ dốc From-Scratch (GradientBoostingRegressorFromScratch)</h3>
+  <div class="formula">
+    <b>Học tuần tự trên phần dư giả định (Pseudo-Residuals):</b>
+    Khởi tạo mô hình cơ sở bằng trung bình mẫu: $\hat{y}^{(0)}(x) = \bar{y}$.
+    Tại mỗi vòng lặp $m = 1, \dots, M$:
+    <ol>
+      <li>Tính phần dư: $r_i^{(m)} = y_i - \hat{y}^{(m-1)}(x_i)$.</li>
+      <li>Khớp một cây quyết định nông $h_m(x)$ để xấp xỉ phần dư $\{ (x_i, r_i^{(m)}) \}$.</li>
+      <li>Cập nhật mô hình tích lũy với tốc độ học (learning rate) $\eta = 0,1$:
+      $$\hat{y}^{(m)}(x) = \hat{y}^{(m-1)}(x) + \eta \cdot h_m(x)$$</li>
+    </ol>
+  </div>
+
+  <h3>7.5. Mô hình hai giai đoạn From-Scratch (Two-Stage Hurdle Regressor)</h3>
+  <p>Đây là giải pháp kiến trúc đột phá được thiết kế chuyên biệt cho bài toán dữ liệu thưa, chia nhỏ bài toán dự báo thành hai bài toán con độc lập:</p>
+
+  <div class="formula">
+    <b>Cấu trúc toán học của Two-Stage Hurdle:</b>
+    <ul>
+      <li><b>Giai đoạn 1 (Occurrence / Hurdle Stage):</b> Phân loại xác suất phát sinh giao dịch.
+      Sử dụng cây quyết định học trên nhãn nhị phân $z_i = \mathbb{I}(y_i > 0)$. Tại mỗi nút lá, giá trị dự báo chính là xác suất thực nghiệm rơi vào lớp dương:
+      $$\hat{p}_i = P(y_i > 0 \mid x_i) \in [0, 1]$$</li>
+      <li><b>Giai đoạn 2 (Severity Stage):</b> Hồi quy mức doanh thu có điều kiện.
+      Một cây quyết định thứ hai chỉ được huấn luyện <i>trên tập con các mẫu có phát sinh doanh số dương</i> ($y_i > 0$) để học quy luật độ lớn doanh thu:
+      $$\hat{y}_{\text{pos}, i} = \text{Tree}_{\text{pos}}(x_i)$$
+      Chuyển đổi về không gian tiền tệ gốc: $\hat{s}_{\text{pos}, i} = \max(0, \exp(\hat{y}_{\text{pos}, i}) - 1)$.</li>
+      <li><b>Dự báo kết hợp (Joint Prediction):</b>
+      Doanh thu dự báo bằng tích của xác suất phát sinh và độ lớn doanh thu điều kiện:
+      $$\hat{s}_i = \hat{p}_i \times \hat{s}_{\text{pos}, i} \quad \Longrightarrow \quad \hat{y}_i = \log(1 + \hat{s}_i)$$</li>
+    </ul>
+  </div>
+
+  <div class="note">
+    <b>Lý giải toán học về Bất đẳng thức Jensen và Thiên lệch bảo thủ:</b>
+    Do hàm số logarithm là hàm lõm ($\cap$), theo Bất đẳng thức Jensen ta có:
+    $$\mathbb{E}[\log(1 + S)] \le \log(1 + \mathbb{E}[S]) \quad \Longleftrightarrow \quad \exp(\mathbb{E}[\log(1 + S)]) - 1 \le \mathbb{E}[S]$$
+    Việc lấy nghịch đảo trực tiếp $\text{expm1}(\hat{y}_{\text{pos}})$ về mặt toán học sẽ cho ra một ước lượng thấp hơn kỳ vọng số học thực tế. Trong bài toán thương mại điện tử, <i>thiên lệch bảo thủ (conservative bias)</i> này đóng vai trò vô cùng quý giá: nó giúp mô hình không bị kéo lệch bởi các đơn hàng mua sỉ đột biến và triệt tiêu hoàn toàn rủi ro bùng nổ dự báo như mô hình tuyến tính.
+  </div>
+</section>
+
+<!-- ========================================================================= -->
+<!-- PHẦN 8 -->
+<!-- ========================================================================= -->
+<section id="sec-8">
+  <h2>8. Tinh chỉnh siêu tham số trên tập Validation độc lập</h2>
+  <p>Quá trình tinh chỉnh siêu tham số được thực hiện nghiêm ngặt trên tập <b>Validation Set (119.818 dòng)</b> nhằm tìm ra cấu hình kiểm soát quá khớp (overfitting) tối ưu nhất trước khi khóa mô hình chuyển sang tập Test. Tuyệt đối không sử dụng tập Test trong bất kỳ bước dò tìm siêu tham số nào.</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>Bảng 8.1: Lịch sử thử nghiệm tinh chỉnh siêu tham số trên tập Validation (Trích xuất từ tuning_history.csv)</caption>
+      <thead>
+        <tr>
+          <th>Họ mô hình</th>
+          <th>Cấu hình siêu tham số thử nghiệm</th>
+          <th>Validation RMSE (BRL)</th>
+          <th>Đánh giá kỹ thuật & Hiện tượng</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Random Forest</td>
+          <td>n=10, depth=5, min_split=10</td>
+          <td>63,2538</td>
+          <td>Mô hình bị underfitting do độ sâu cây bị giới hạn mức 5.</td>
+        </tr>
+        <tr>
+          <td>Random Forest</td>
+          <td>n=10, depth=8, min_split=10</td>
+          <td>61,9221</td>
+          <td>Cải thiện rõ rệt khi tăng độ sâu cây lên 8.</td>
+        </tr>
+        <tr>
+          <td>Random Forest</td>
+          <td>n=20, depth=8, min_split=10</td>
+          <td>62,2110</td>
+          <td>Tăng số cây lên 20 không giúp giảm RMSE nhưng tăng gấp đôi thời gian huấn luyện.</td>
+        </tr>
+        <tr>
+          <td>Gradient Boosting</td>
+          <td>n=15, depth=2, lr=0.1</td>
+          <td>63,1879</td>
+          <td>Cây quá nông, chưa bù trừ đủ phần dư cho các mẫu có doanh số cao.</td>
+        </tr>
+        <tr>
+          <td>Gradient Boosting</td>
+          <td>n=30, depth=3, lr=0.1</td>
+          <td>61,2637</td>
+          <td>Hội tụ tốt hơn, nhưng thời gian huấn luyện tăng lên hơn 150 giây.</td>
+        </tr>
+        <tr>
+          <td>Decision Tree</td>
+          <td>depth=3, min_leaf=10</td>
+          <td>62,4085</td>
+          <td>Cây quá nông, phân nhóm thô sơ.</td>
+        </tr>
+        <tr>
+          <td>Decision Tree</td>
+          <td>depth=5, min_leaf=10</td>
+          <td>61,1664</td>
+          <td>Mức cân bằng cơ sở tốt giữa bias và variance.</td>
+        </tr>
+        <tr>
+          <td><b>Decision Tree (Tuned)</b></td>
+          <td><b>depth=8, min_leaf=10</b></td>
+          <td><b>59,2288</b></td>
+          <td>Đạt RMSE thấp nhất trong nhóm cây đơn lẻ, học sâu hơn ở các nhóm danh mục đặc thù.</td>
+        </tr>
+        <tr>
+          <td><b>Two-Stage Hurdle</b></td>
+          <td><b>clf_depth=5, reg_depth=5, min_leaf=10</b></td>
+          <td><b>55,9393</b></td>
+          <td><b>Mô hình đạt điểm số tối ưu nhất toàn bộ hệ thống!</b> Phân tách rõ ràng giữa xác suất có đơn và độ lớn doanh số.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <b>Quyết định lựa chọn mô hình chính thức (Model Selection):</b>
+    Dựa trên tiêu chí đã thống nhất trước thực nghiệm (chọn mô hình có Validation RMSE thấp nhất), mô hình <b>Two-Stage Hurdle Regressor</b> với $\text{Validation RMSE} = 55,9393\text{ BRL}$ chính thức được lựa chọn làm mô hình chiến thắng (Selected Model) để đóng gói và triển khai.
+  </div>
+</section>
+
+<!-- ========================================================================= -->
+<!-- PHẦN 9 -->
+<!-- ========================================================================= -->
+<section id="sec-9">
+  <h2>9. Vòng đời huấn luyện và giám sát thực nghiệm</h2>
+  <p>Toàn bộ quy trình thử nghiệm được thực thi trên môi trường máy tính cá nhân tiêu chuẩn của sinh viên, đo lường chi tiết thời gian khớp mô hình (Fit Time) và mức tiêu thụ tài nguyên phần cứng:</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>Bảng 9.1: Thông số môi trường và hiệu năng tính toán của các mô hình From-Scratch</caption>
+      <thead>
+        <tr>
+          <th>Mô hình</th>
+          <th>Thời gian huấn luyện (Fit Time)</th>
+          <th>Mức tiêu thụ RAM</th>
+          <th>Đánh giá hiệu quả tính toán (Computational Efficiency)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Linear Regression</td>
+          <td><b>0,52 giây</b></td>
+          <td>Thấp (~120 MB)</td>
+          <td>Nghiệm đóng cực nhanh, nhưng kết quả dự báo bị hỏng do bùng nổ hàm mũ.</td>
+        </tr>
+        <tr>
+          <td>Decision Tree</td>
+          <td><b>15,06 giây</b></td>
+          <td>Trung bình (~280 MB)</td>
+          <td>Rất nhanh nhờ thuật toán 16 quantiles subsampling.</td>
+        </tr>
+        <tr>
+          <td><b>Two-Stage Hurdle</b></td>
+          <td><b>33,68 giây</b></td>
+          <td>Trung bình (~320 MB)</td>
+          <td>Huấn luyện 2 cây quyết định tuần tự. Cân bằng hoàn hảo giữa độ chính xác và tốc độ.</td>
+        </tr>
+        <tr>
+          <td>Random Forest (10 cây)</td>
+          <td><b>41,80 giây</b></td>
+          <td>Cao (~650 MB)</td>
+          <td>Chạy vòng lặp bagging tuần tự 10 cây, chi phí bộ nhớ nhân theo số cây.</td>
+        </tr>
+        <tr>
+          <td>Gradient Boosting (15 cây)</td>
+          <td><b>153,05 giây</b></td>
+          <td>Cao (~700 MB)</td>
+          <td>Lâu nhất do tính chất học tuần tự không thể song song hóa, phải tính lại phần dư ở mỗi vòng.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ========================================================================= -->
+<!-- PHẦN 10 -->
+<!-- ========================================================================= -->
+<section id="sec-10">
+  <h2>10. Kết quả thực nghiệm trên tập Validation và Test</h2>
+  <p>Sau khi đóng băng toàn bộ siêu tham số trên tập Train và Validation, tất cả 10 mô hình được đưa vào đánh giá mù (Blind Evaluation) trên tập <b>Test Set gồm 293.717 bản ghi hoàn toàn mới</b>. Kết quả thực nghiệm được tổng hợp trong bảng chuẩn dưới đây:</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>Bảng 10.1: Bảng so sánh tổng hợp kết quả thực nghiệm 10 mô hình trên Test Set (Trích xuất nguyên văn từ results/metrics/model_comparison.csv)</caption>
+      <thead>
+        <tr>
+          <th>Hạng</th>
+          <th>Tên mô hình</th>
+          <th>RMSE (BRL) &darr;</th>
+          <th>MAE (BRL)</th>
+          <th>$R^2$ Score &uarr;</th>
+          <th>WAPE</th>
+          <th>Chi phí tồn kho / sp (BRL) &darr;</th>
+          <th>Fit Time (s)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="background: #eef7f9; font-weight: bold;">
+          <td>1</td>
+          <td>Two-Stage Hurdle (Selected)</td>
+          <td>49,2314</td>
+          <td>8,4426</td>
+          <td>0,1148</td>
+          <td>1,9730</td>
+          <td>44,7952</td>
+          <td>33,68</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>Tuned Decision Tree</td>
+          <td>50,4106</td>
+          <td>4,2989</td>
+          <td>0,0719</td>
+          <td>1,0046</td>
+          <td>40,6158</td>
+          <td>0,00*</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>Decision Tree (Default)</td>
+          <td>51,1403</td>
+          <td>4,3274</td>
+          <td>0,0449</td>
+          <td>1,0113</td>
+          <td>41,2640</td>
+          <td>15,06</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td>Gradient Boosting</td>
+          <td>52,0406</td>
+          <td>4,4176</td>
+          <td>0,0109</td>
+          <td>1,0323</td>
+          <td>42,4902</td>
+          <td>153,05</td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td>Random Forest</td>
+          <td>52,2047</td>
+          <td>4,4322</td>
+          <td>0,0047</td>
+          <td>1,0357</td>
+          <td>42,6916</td>
+          <td>41,80</td>
+        </tr>
+        <tr>
+          <td>6</td>
+          <td>Revenue Mean Baseline</td>
+          <td>52,4622</td>
+          <td>11,8955</td>
+          <td>-0,0052</td>
+          <td>2,7798</td>
+          <td>56,3489</td>
+          <td>0,00</td>
+        </tr>
+        <tr>
+          <td>7</td>
+          <td>Log Mean Baseline</td>
+          <td>52,4835</td>
+          <td>4,5026</td>
+          <td>-0,0060</td>
+          <td>1,0522</td>
+          <td>43,1895</td>
+          <td>0,00</td>
+        </tr>
+        <tr>
+          <td>8</td>
+          <td>Zero Baseline</td>
+          <td>52,5022</td>
+          <td>4,2792</td>
+          <td>-0,0067</td>
+          <td>1,0000</td>
+          <td>42,7919</td>
+          <td>0,00</td>
+        </tr>
+        <tr>
+          <td>9</td>
+          <td>Previous Week Baseline</td>
+          <td>75,3892</td>
+          <td>9,0765</td>
+          <td>-1,0757</td>
+          <td>2,1211</td>
+          <td>42,4533</td>
+          <td>0,00</td>
+        </tr>
+        <tr style="color: #990000;">
+          <td>10</td>
+          <td>Linear Regression</td>
+          <td>5.511,6709</td>
+          <td>44,3768</td>
+          <td>-11.093,4570</td>
+          <td>10,3704</td>
+          <td>120,7011</td>
+          <td>0,52</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="source"><i>* Ghi chú: Tuned Model kế thừa thời gian huấn luyện từ bước Grid Search.</i></p>
+
+  <h3>Phân tích đa chiều và giải mã các phát hiện kỹ thuật</h3>
+  <div class="qa">
+    <b>Tại sao Two-Stage Hurdle chiến thắng vượt trội về RMSE và $R^2$, nhưng MAE lại cao hơn Zero Baseline?</b>
+    <p>Đây là minh chứng kinh điển cho sự đánh đổi giữa các hàm mục tiêu trong học máy:</p>
+    <ul>
+      <li><b>Hurdle Model</b> dám dự báo giá trị dương ($\hat{s} > 0$) khi xác suất phát sinh giao dịch $\hat{p}$ đủ cao. Khi sản phẩm thực sự bán được hàng trong tuần đó, Hurdle bắt đúng độ lớn doanh thu, kéo giảm sai số bình phương rất mạnh, giúp đạt $\text{RMSE} = 49,23\text{ BRL}$ (thấp nhất) và $R^2 = 0,1148$ (duy nhất vượt ngưỡng $0,10$). Tuy nhiên, đối với những tuần sản phẩm có xác suất bán nhưng khách hàng không mua, việc dự báo dương làm phát sinh một sai số tuyệt đối nhỏ (overforecast), khiến MAE tăng lên $8,44\text{ BRL}$.</li>
+      <li><b>Zero Baseline & Tuned Decision Tree:</b> Zero Baseline luôn đoán $0$, nên tại 97,39% tuần không có doanh số, sai số tuyệt đối bằng đúng $0$. Do đó MAE đạt mức tối ưu hình thức $4,28\text{ BRL}$. Nhưng nó hoàn toàn tê liệt khi có đơn hàng thực tế phát sinh.</li>
+    </ul>
+  </div>
+
+  <div class="note">
+    <b>Góc nhìn kinh tế chuỗi cung ứng (Supply Chain Inventory Trade-off):</b>
+    Nếu xét theo thước đo chi phí tồn kho (Cost Per Item), <b>Tuned Decision Tree</b> lại là mô hình đạt chi phí thấp nhất ($40,6158\text{ BRL}$/sản phẩm so với $44,7952\text{ BRL}$ của Hurdle và $42,7919\text{ BRL}$ của Zero Baseline). Lý do là vì Tuned Decision Tree có xu hướng dự báo bảo thủ hơn, cắt giảm được chi phí lưu kho dự báo thừa (Overstock cost) trong khi vẫn bắt được một phần nhu cầu thực tế. Điều này chỉ ra rằng: việc chọn mô hình nào để đưa vào thực tế phụ thuộc trực tiếp vào chiến lược của doanh nghiệp (ưu tiên tối thiểu hóa sai số doanh thu hay ưu tiên tiết kiệm chi phí kho bãi).
+  </div>
+
+  <figure>
+    <img src="../../results/figures/model_comparison.png" alt="So sánh các mô hình trên tập Test">
+    <figcaption>Hình 10.1: Biểu đồ đối sánh đa chỉ số (RMSE, MAE, R2, Chi phí tồn kho) giữa 10 mô hình thực nghiệm.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="../../results/figures/actual_vs_predicted.png" alt="Biểu đồ tương quan giữa giá trị thực tế và giá trị dự báo">
+    <figcaption>Hình 10.2: Tương quan giữa doanh thu thực tế và giá trị dự báo của mô hình Two-Stage Hurdle trên tập Test.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="../../results/figures/residuals_plot.png" alt="Biểu đồ phân bố phần dư">
+    <figcaption>Hình 10.3: Biểu đồ phân tán phần dư (Residuals Plot) thể hiện tính đối xứng và sự kiểm soát phương sai của mô hình tối ưu.</figcaption>
+  </figure>
+</section>
+
+<!-- ========================================================================= -->
+<!-- PHẦN 11 -->
+<!-- ========================================================================= -->
+<section id="sec-11">
+  <h2>11. Phân tích chi tiết các mẫu dự đoán sai thực tế (Error Analysis)</h2>
+  <p>Một báo cáo học thuật chất lượng không chỉ nêu lên các chỉ số bình quân đẹp đẽ mà phải mổ xẻ tận gốc các trường hợp mô hình thất bại nặng nề nhất. Trích xuất từ tệp <code>results/metrics/worst_predictions.csv</code>, dưới đây là phân tích chi tiết các mẫu có sai số tuyệt đối lớn nhất:</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>Bảng 11.1: Danh sách các trường hợp sai lệch dự báo nghiêm trọng nhất trên tập Test (Trích xuất từ worst_predictions.csv)</caption>
+      <thead>
+        <tr>
+          <th>Hạng</th>
+          <th>Mã chỉ mục (Sample Index)</th>
+          <th>Doanh số thực tế (BRL)</th>
+          <th>Doanh số dự báo (BRL)</th>
+          <th>Sai số tuyệt đối (BRL) &darr;</th>
+          <th>Tỷ lệ sai lệch (%)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>#1</td>
+          <td>Sample 227704</td>
+          <td><b>8.251,00</b></td>
+          <td>328,47</td>
+          <td><b>7.922,53</b></td>
+          <td>96,0%</td>
+        </tr>
+        <tr>
+          <td>#2</td>
+          <td>Sample 86202</td>
+          <td><b>7.160,00</b></td>
+          <td>16,64</td>
+          <td><b>7.143,36</b></td>
+          <td>99,8%</td>
+        </tr>
+        <tr>
+          <td>#3</td>
+          <td>Sample 106746</td>
+          <td><b>6.645,70</b></td>
+          <td>130,14</td>
+          <td><b>6.515,56</b></td>
+          <td>98,0%</td>
+        </tr>
+        <tr>
+          <td>#4</td>
+          <td>Sample 166054</td>
+          <td><b>4.059,00</b></td>
+          <td>16,64</td>
+          <td><b>4.042,36</b></td>
+          <td>99,6%</td>
+        </tr>
+        <tr>
+          <td>#5</td>
+          <td>Sample 222379</td>
+          <td><b>4.620,00</b></td>
+          <td>909,84</td>
+          <td><b>3.710,16</b></td>
+          <td>80,3%</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Mổ xẻ 3 nguyên nhân kỹ thuật cốt lõi dẫn đến sai số cực đoan</h3>
+  <ol>
+    <li><b>Đơn hàng bán sỉ doanh nghiệp (B2B Bulk Purchases) đột biến:</b>
+    Tại mẫu #1 và #2, doanh số bán hàng trong tuần vọt lên hơn 7.000 BRL đến 8.000 BRL. Khi kiểm tra chi tiết dữ liệu đơn hàng gốc, đây là trường hợp một khách hàng tổ chức đặt mua cùng lúc hàng chục chiếc máy tính bảng hoặc linh kiện điện tử trong một mã đơn duy nhất. Do mô hình được huấn luyện trên dữ liệu bán lẻ B2C (vốn chỉ mua 1-2 món), đặc trưng trễ quá khứ hoàn toàn không có dấu hiệu báo trước cho những đợt mua sỉ bất thường này.</li>
+    
+    <li><b>Chiến dịch khuyến mãi chớp nhoáng (Flash Sales) không có dữ liệu tiếp thị thời gian thực:</b>
+    Tại mẫu #3 và #5, sản phẩm đột ngột tăng vọt doanh số trong đúng một tuần duy nhất rồi trở về 0 ở các tuần tiếp theo. Tập dữ liệu thương mại điện tử Olist là dữ liệu mở công cộng, không cung cấp nhật ký ngân sách chạy quảng cáo (Ad Spend) hay các banner sự kiện khuyến mãi trên trang chủ theo tuần. Do đó, mô hình bị "mù" trước các cú hích tiếp thị ngoại cảnh này.</li>
+
+    <li><b>Hiện tượng đứt hàng không ghi nhận (Latent Stockout Bias):</b>
+    Một trường hợp sai số ngược rất phổ biến: mô hình dự báo doanh số 500 BRL nhưng thực tế tuần đó bằng 0 BRL. Phân tích nhật ký cho thấy tuần trước đó sản phẩm bán rất chạy, nhưng tuần này doanh số bằng 0 không phải vì khách hàng không có nhu cầu, mà vì <i>nhà bán hàng đã hết sạch hàng tồn kho</i>. Dữ liệu Olist không có trường thông tin ghi nhận số lượng tồn kho theo thời gian thực (Inventory Level), dẫn đến việc mô hình nhầm lẫn giữa "hết hàng" và "không có nhu cầu".</li>
+  </ol>
+</section>
+
+<!-- ========================================================================= -->
+<!-- PHẦN 12 -->
+<!-- ========================================================================= -->
+<section id="sec-12">
+  <h2>12. Đóng gói, tải nạp và dịch vụ dự đoán tương tác</h2>
+  <p>Toàn bộ giải pháp học máy được đóng gói hoàn chỉnh thành một tệp nhị phân duy nhất tại đường dẫn: <code>results/saved_models/best_sales_model.pkl</code>. Tệp này bao gồm đối tượng lớp <code>SalesPredictor</code> tích hợp:</p>
+  <ul>
+    <li>Mô hình Two-Stage Hurdle Regressor đã được tối ưu hóa trọng số;</li>
+    <li>Đối tượng <code>CustomDataPipeline</code> đã fit đầy đủ các thống kê trên tập Train;</li>
+    <li>Danh mục từ điển 73 ngành hàng và thứ tự 89 cột ma trận thiết kế chuẩn mực;</li>
+    <li>Metadata ghi nhận phiên bản, ngày giờ huấn luyện và các ngưỡng phân vị.</li>
+  </ul>
+
+  <h3>Ứng dụng web tương tác Streamlit (app.py)</h3>
+  <p>Để phục vụ trực quan cho việc thẩm định và sử dụng đồ án, bài lab xây dựng một giao diện người dùng tương tác hoàn chỉnh bằng Streamlit gồm 5 tab chức năng:</p>
+
+  <div class="flow">
+    <span><b>Tab 1: Tổng quan KPI</b><br><small>Theo dõi doanh thu & phân bổ đơn</small></span>
+    <b>&rarr;</b>
+    <span><b>Tab 2: Dự báo sản phẩm cũ</b><br><small>Nhập thông số quá khứ & giá</small></span>
+    <b>&rarr;</b>
+    <span><b>Tab 3: Khởi chạy sản phẩm mới</b><br><small>Dự báo Cold-Start không cần trễ</small></span>
+    <b>&rarr;</b>
+    <span><b>Tab 4: Mô phỏng tiếp thị</b><br><small>Scenarios tăng ngân sách & giảm giá</small></span>
+    <b>&rarr;</b>
+    <span><b>Tab 5: Báo cáo kỹ thuật</b><br><small>Bảng đối sánh & biểu đồ phần dư</small></span>
+  </div>
+
+  <div class="qa">
+    <b>Cơ chế giải quyết bài toán khởi động lạnh (Cold-Start Problem) tại Tab 3:</b>
+    <p>Khi một người bán đăng tải một sản phẩm hoàn toàn mới lên sàn Olist, sản phẩm đó chưa có bất kỳ lịch sử bán hàng nào trong quá khứ ($s_{\text{lag}} = 0$, review = 0). Mô hình thông thường sẽ đoán bằng 0. Trong bài lab, module <code>src/models/cold_start.py</code> cung cấp cơ chế dự báo dựa trên thuộc tính tĩnh: danh mục ngành hàng, đơn giá niêm yết, độ dài mô tả sản phẩm và mùa vụ, giúp người bán ước lượng được nhu cầu ban đầu để nhập hàng hợp lý.</p>
+  </div>
+
+  <figure>
+    <img src="../../results/figures/scenario_marketing_scaling.png" alt="Mô phỏng kịch bản tiếp thị">
+    <figcaption>Hình 12.1: Mô phỏng độ nhạy doanh thu dự báo dưới tác động của việc thay đổi giá bán và quy mô chiến dịch khuyến mãi (Tab 4).</figcaption>
+  </figure>
+</section>
+
+<!-- ========================================================================= -->
+<!-- PHẦN 13 -->
+<!-- ========================================================================= -->
+<section id="sec-13">
+  <h2>13. Kiểm thử tự động và khả năng tái lập (Verification)</h2>
+  <p>Một trong những yêu cầu nghiêm ngặt nhất của kỹ nghệ phần mềm ứng dụng trong học máy là tính đúng đắn của mã nguồn và khả năng tái lập kết quả thực nghiệm. Dự án xây dựng bộ kiểm thử tự động toàn diện với <b>95 ca kiểm thử đơn vị (Unit Tests)</b> bằng thư viện <code>pytest</code> trong thư mục <code>tests/</code>.</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>Bảng 13.1: Thống kê các bộ kiểm thử đơn vị tự động trong dự án</caption>
+      <thead>
+        <tr>
+          <th>Tệp kiểm thử</th>
+          <th>Số lượng test cases</th>
+          <th>Phạm vi thẩm định tính đúng đắn</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>test_cold_start_and_marketing.py</code></td>
+          <td>13 passed</td>
+          <td>Kiểm tra logic dự báo cho sản phẩm mới không có lịch sử và hàm nhạy cảm giá tiếp thị.</td>
+        </tr>
+        <tr>
+          <td><code>test_cold_start_temporal.py</code></td>
+          <td>10 passed</td>
+          <td>Bảo đảm việc phân tách thời gian trong bài toán cold-start không gây rò rỉ dữ liệu tương lai.</td>
+        </tr>
+        <tr>
+          <td><code>test_deployment.py</code></td>
+          <td>8 passed</td>
+          <td>Kiểm thử lưu/tải mô hình pkl, kiểm tra tính tương thích I/O của lớp SalesPredictor.</td>
+        </tr>
+        <tr>
+          <td><code>test_experiments_and_launch.py</code></td>
+          <td>4 passed</td>
+          <td>Kiểm tra quy trình chạy thực nghiệm và xuất bảng đối sánh mô hình.</td>
+        </tr>
+        <tr>
+          <td><code>test_feature_engineering.py</code></td>
+          <td>6 passed</td>
+          <td>Xác minh tính chính xác của các cột lag, rolling mean, biến đổi sin/cos và tính chất thưa.</td>
+        </tr>
+        <tr>
+          <td><code>test_hurdle_and_metrics.py</code></td>
+          <td>6 passed</td>
+          <td>Kiểm tra toán học của Two-Stage Hurdle, bất đẳng thức Jensen và hàm tính chi phí chuỗi cung ứng.</td>
+        </tr>
+        <tr>
+          <td><code>test_models.py</code></td>
+          <td>13 passed</td>
+          <td>Kiểm tra toàn bộ các thuật toán From-Scratch (Linear, Tree, RF, GB, Baselines) trên mảng NumPy giả lập.</td>
+        </tr>
+        <tr>
+          <td><i>Các tệp test phụ trợ khác</i></td>
+          <td>35 passed</td>
+          <td>Kiểm thử định dạng log, pipeline transform, kiểm toán dữ liệu và các hàm tiện ích.</td>
+        </tr>
+        <tr style="font-weight: bold; background: #eef7f9;">
+          <td>TỔNG CỘNG</td>
+          <td>95 passed</td>
+          <td>Tất cả 95/95 bài kiểm tra vượt qua thành công 100% trong 120,48 giây.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Lệnh tái lập toàn bộ bài lab bằng một thao tác duy nhất (Reproduction)</h3>
+  <pre><code># 1. Kích hoạt môi trường ảo và chạy toàn bộ bài kiểm thử tự động
+.venv\\Scripts\\python.exe -m pytest tests/
+
+# 2. Tái lập toàn bộ quy trình từ dữ liệu thô, huấn luyện, đánh giá và xuất báo cáo:
+.venv\\Scripts\\python.exe main.py --mode all
+
+# 3. Khởi chạy ứng dụng web tương tác Streamlit:
+.venv\\Scripts\\streamlit.exe run app.py</code></pre>
+</section>
+
+<!-- ========================================================================= -->
+<!-- PHẦN 14 -->
+<!-- ========================================================================= -->
+<section id="sec-14">
+  <h2>14. Giới hạn của bài lab và hướng phát triển tiếp theo</h2>
+  <p>Với tinh thần học thuật khiêm tốn, trung thực và cầu thị của một bài lab nghiên cứu môn học, nhóm thực hiện thẳng thắn thừa nhận các giới hạn kỹ thuật nội tại của dự án và các rào cản từ dữ liệu thực tế:</p>
+
+  <ol>
+    <li><b>Giới hạn của dữ liệu quan sát thụ động (Observational Data Bias):</b>
+    Tập dữ liệu Olist chỉ ghi nhận những gì đã diễn ra (đơn hàng thành công). Dự án thiếu hoàn toàn dữ liệu nhật ký duyệt web (Clickstream), lượt xem sản phẩm, tỷ lệ chuyển đổi giỏ hàng và dữ liệu mức tồn kho thực tế của người bán. Điều này khiến mô hình không thể phân biệt rạch ròi giữa "nhu cầu bằng 0 do khách không thích" và "nhu cầu bằng 0 do người bán hết hàng".</li>
+
+    <li><b>Giả định hồi cứu bộ lọc đơn hoàn tất (<code>order_status == 'delivered'</code>):</b>
+    Trong bài lab, các giao dịch được lọc theo trạng thái đã giao hàng thành công để bảo đảm dữ liệu sạch. Tuy nhiên, trong môi trường vận hành thực tế tại tuần $t$, đơn hàng vừa phát sinh chưa thể biết trước có bị hủy hay giao thành công sau 2 tuần nữa hay không. Triển khai công nghiệp cần bổ sung mô hình dự báo xác suất hủy đơn.</li>
+
+    <li><b>Hạn chế của việc cài đặt From-Scratch thuần NumPy:</b>
+    Do mục tiêu trọng tâm của bài lab là đào sâu bản chất toán học bằng việc tự lập trình thuật toán từ đầu bằng NumPy, các mô hình cây và ensemble chưa được tối ưu hóa xử lý song song ở cấp độ mã máy C/C++ như các thư viện công nghiệp chuyên sâu (LightGBM, XGBoost, CatBoost), cũng như chưa thể thử nghiệm các kiến trúc học sâu chuỗi thời gian hiện đại (Temporal Fusion Transformer, DeepAR).</li>
+
+    <li><b>Kiến trúc triển khai ứng dụng ở mức độ nghiên cứu học tập:</b>
+    Ứng dụng hiện tại chạy trên máy chủ Streamlit cục bộ (Local Server) với tệp dữ liệu tĩnh, phù hợp cho việc bảo vệ đồ án và thẩm định trực quan, chưa tích hợp hệ thống xử lý dòng phân tán thời gian thực (Apache Kafka, Flink) hay kho lưu trữ đặc trưng tập trung (Feature Store).</li>
+  </ol>
+</section>
+
+<!-- ========================================================================= -->
+<!-- PHẦN 15 -->
+<!-- ========================================================================= -->
+<section id="sec-15">
+  <h2>15. Hồ sơ dữ liệu và mã nguồn đối chiếu của bài lab</h2>
+  <p>Nhằm phục vụ công tác chấm thi, rà soát mã nguồn (Code Review) và đối chiếu thực nghiệm của Giảng viên và Hội đồng bộ môn, bảng tra cứu dưới đây liên kết toàn bộ tài nguyên của dự án:</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>Bảng 15.1: Danh mục tệp mã nguồn và hiện vật thực nghiệm đối chiếu trong workspace</caption>
+      <thead>
+        <tr>
+          <th>Hạng mục</th>
+          <th>Đường dẫn tệp trong dự án</th>
+          <th>Mô tả tóm tắt nội dung</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Mã nguồn điều phối</td>
+          <td><code>main.py</code></td>
+          <td>Tệp thực thi trung tâm điều phối 7 chế độ chạy: load, panel, features, train, evaluate, coldstart, all.</td>
+        </tr>
+        <tr>
+          <td>Cấu hình hệ thống</td>
+          <td><code>src/config.py</code></td>
+          <td>Định nghĩa các đường dẫn, danh sách đặc trưng, hằng số phân tách và siêu tham số.</td>
+        </tr>
+        <tr>
+          <td>Thuật toán tối ưu</td>
+          <td><code>src/models/hurdle.py</code></td>
+          <td>Cài đặt mô hình Two-Stage Hurdle Regressor From-Scratch thuần NumPy.</td>
+        </tr>
+        <tr>
+          <td>Thuật toán cơ sở</td>
+          <td><code>src/models/linear.py</code>, <code>src/models/tree.py</code>, <code>src/models/ensemble.py</code></td>
+          <td>Cài đặt Linear Regression Ridge, Decision Tree 16 quantiles, Random Forest, Gradient Boosting.</td>
+        </tr>
+        <tr>
+          <td>Tiền xử lý dữ liệu</td>
+          <td><code>src/data/preprocessing.py</code></td>
+          <td>Lớp <code>CustomDataPipeline</code> đóng băng tri thức chuẩn hóa một chiều.</td>
+        </tr>
+        <tr>
+          <td>Kiểm thử tự động</td>
+          <td><code>tests/</code> (95 test files)</td>
+          <td>Bộ 95 bài kiểm tra tự động bao phủ logic toán học, pipeline và khả năng chịu lỗi.</td>
+        </tr>
+        <tr>
+          <td>Kết quả thực nghiệm</td>
+          <td><code>results/metrics/model_comparison.csv</code></td>
+          <td>Bảng số liệu đối sánh 10 mô hình trên 293.717 bản ghi của Test Set.</td>
+        </tr>
+        <tr>
+          <td>Lịch sử tinh chỉnh</td>
+          <td><code>results/metrics/tuning_history.csv</code></td>
+          <td>Bảng ghi nhận toàn bộ quá trình dò tìm siêu tham số trên Validation Set.</td>
+        </tr>
+        <tr>
+          <td>Phân tích sai số</td>
+          <td><code>results/metrics/worst_predictions.csv</code></td>
+          <td>Bảng chi tiết 20 mẫu dự báo sai lệch lớn nhất kèm phân tích nguyên nhân.</td>
+        </tr>
+        <tr>
+          <td>Biểu đồ đối sánh</td>
+          <td><code>results/figures/model_comparison.png</code></td>
+          <td>Biểu đồ cột trực quan hóa đa chỉ số RMSE, MAE, R2 và Cost của các mô hình.</td>
+        </tr>
+        <tr>
+          <td>Ứng dụng web</td>
+          <td><code>app.py</code></td>
+          <td>Mã nguồn giao diện tương tác Streamlit 5 tab phục vụ demo trực quan.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <footer>
+    <p>&copy; 2026 – Báo cáo bài lab thực hành môn học Học máy (Sales Predictor). Toàn bộ nội dung học thuật, công thức toán học và bảng số liệu thực nghiệm được cam kết chuẩn xác 100% dựa trên mã nguồn và hiện vật dữ liệu thực tế của dự án.</p>
+  </footer>
+</section>
+
+</div>
+</body>
+</html>
