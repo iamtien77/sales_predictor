@@ -45,6 +45,8 @@ docs/*
 !docs/ML project_ Predicting Product Sales.pdf
 !docs/description_for_AI_working/
 !docs/description_for_AI_working/**
+!docs/reports/
+!docs/reports/**
 logs/
 # Testing
 .pytest_cache/
