@@ -11,7 +11,7 @@
 Trong bài toán dự báo doanh thu bán lẻ chuỗi thời gian theo tuần trên sàn thương mại điện tử Olist, dữ liệu mang các đặc thù phân phối phức tạp:
 - **Tính phi tuyến tính mạnh mẽ:** Mối quan hệ giữa doanh thu với các biến trễ thời gian (`last_week_sales`, `sales_mean_4_weeks`), giá bán (`price`) và đánh giá chất lượng (`past_review_rating`) không tuân theo quy luật đường thẳng.
 - **Dữ liệu thưa và nhiều số 0 (Zero-Inflated Demand):** Đa số sản phẩm có nhiều tuần không phát sinh đơn hàng (`sales = 0`), khiến mô hình tuyến tính dễ bị nhiễu cục bộ.
-- **Tương tác đặc trưng phức hợp:** Sự kết hợp giữa các tuần lễ hội (`is_peak_shopping_season`) và ngành hàng cụ thể (`product_category_name`) tạo ra các ngưỡng phân nhánh có điều kiện cục bộ.
+- **Tương tác đặc trưng phức hợp:** Sự kết hợp giữa các tuần lễ hội (`is_peak_shopping_season`) và ngành hàng cụ thể (`category`, được ánh xạ từ `product_category_name`) tạo ra các ngưỡng phân nhánh có điều kiện cục bộ.
 
 Mục đích của thuật toán **Decision Tree Regressor** trong thiết kế của nhóm:
 - Chia tách không gian đặc trưng thành các siêu hình hộp trực giao (Axis-aligned hyper-rectangles) đồng nhất về doanh thu bằng cơ chế đệ quy nhị phân.
@@ -87,15 +87,18 @@ Toàn bộ đánh giá lựa chọn mô hình đều được đo lường trự
 2. **Mean Absolute Error (MAE):** Đơn vị $\text{BRL}$, đo sai lệch doanh thu trung bình trên mỗi sản phẩm–tuần.
 3. **Mean Squared Error (MSE):** Đơn vị $\text{BRL}^2$.
 4. **Hệ số xác định ($R^2$ Score):** Đo lường tỷ lệ phương sai doanh thu được giải thích so với mốc Baseline trung bình.
+5. **Weighted Absolute Percentage Error (WAPE):** Sai số phần trăm có trọng số.
+6. **Cost_Per_Item_BRL:** Độ đo chi phí bất đối xứng giữa dự báo thiếu và dự báo thừa.
 
 ---
 
-## 5. Status (Trạng thái thiết kế & Tối ưu kỹ thuật)
+## 5. Status (Trạng thái cài đặt & Tối ưu kỹ thuật)
 
+- **Đã cài đặt From-Scratch ([`src/models/tree.py`](../../src/models/tree.py)):** Lớp `DecisionTreeRegressorFromScratch` cài đặt đệ quy phân nhánh nhị phân theo mức giảm phương sai. Trong `main.py` Step 6, mô hình mặc định chạy với `max_depth=5, min_samples_split=20, min_samples_leaf=10, n_quantiles=16` (fit `17,51s`), đạt Validation RMSE `61,1664 BRL` và Test RMSE `51,1403 BRL` (`MAE 4,3274 BRL`, $R^2$ `0,0449`, WAPE `1,0113`, Cost `41,2640`).
 - **Nguyên tắc dừng cây:** Cây dừng phân nhánh khi đạt độ sâu tối đa `max_depth`, số mẫu tại nút nhỏ hơn `min_samples_split`, phương sai nút nhỏ hơn ngưỡng $10^{-10}$, hoặc không tìm được phép chia nào có $\Delta \text{Var} > 0$.
 - **Ràng buộc lá:** Cả hai nút con sau khi chia đều bắt buộc phải thỏa mãn số mẫu tối thiểu `min_samples_leaf`.
 - **Tối ưu hóa ngưỡng phân vị (Quantile Split Candidates):**
-  - Để tránh việc sắp xếp và duyệt qua toàn bộ các giá trị phân biệt gây bùng nổ thời gian tính toán, nhóm thiết kế cơ chế lấy mẫu tối đa 16 phân vị đại diện (từ phân vị 5% đến 95%) trên các giá trị phân biệt của từng đặc trưng làm ngưỡng cắt ứng viên.
+  - Để tránh duyệt toàn bộ giá trị phân biệt gây chậm, bộ chia lấy mẫu tối đa `n_quantiles=16` phân vị đại diện (từ phân vị `5%` đến `95%`) trên các giá trị phân biệt của từng đặc trưng làm ngưỡng cắt ứng viên.
 - **Trích xuất độ quan trọng đặc trưng (Feature Importance):**
   - Tính tổng lượng giảm phương sai có trọng số qua tất cả các nút phân nhánh theo từng đặc trưng $j$:
 
@@ -105,13 +108,23 @@ $$
 
 ---
 
-## 6. Kế Hoạch Tinh Chỉnh Siêu Tham Số (Hyperparameter Tuning Plan)
+## 6. Kế Hoạch & Kết Quả Tinh Chỉnh Siêu Tham Số
 
 ### 6.1. Không gian tìm kiếm lưới siêu tham số trên tập Validation
-Nhóm thiết kế lưới tinh chỉnh siêu tham số trên tập Validation độc lập nhằm xác định điểm cân bằng phù hợp:
-- **Độ sâu tối đa (`max_depth`):** Khảo sát các mức $\{3, 5, 8\}$.
-- **Số mẫu tối thiểu tại lá (`min_samples_leaf`):** Khảo sát các mức $\{10, 30\}$.
+Nhóm chạy lưới 6 cấu hình (`main.py` Step 7, cố định `min_samples_split=20, n_quantiles=16`) trên tập Validation độc lập:
+- **Độ sâu tối đa (`max_depth`):** $\{3, 5, 8\}$.
+- **Số mẫu tối thiểu tại lá (`min_samples_leaf`):** $\{10, 30\}$.
 
-### 6.2. Tiêu chí lựa chọn cấu hình tối ưu
-- Cấu hình đại diện được chọn là cấu hình đạt **Validation RMSE (BRL)** thấp nhất trên tập Validation.
-- Tuyệt đối không sử dụng tập Test trong quá trình tìm kiếm và lựa chọn siêu tham số.
+### 6.2. Tiêu chí lựa chọn & kết quả lưới thực tế (`tuning_history.csv`)
+- Cấu hình đại diện được chọn theo **Validation RMSE (BRL)** thấp nhất, không dùng tập Test để chọn siêu tham số:
+
+| `max_depth` | `min_samples_leaf` | Validation RMSE (BRL) | Ghi chú |
+| --- | --- | --- | --- |
+| `3` | `10` | `62.4085` | |
+| `3` | `30` | `62.4085` | |
+| `5` | `10` | `61.1664` | Trùng cấu hình Step 6 |
+| `5` | `30` | `61.1664` | |
+| `8` | `10` | **`59.2288`** | Tốt nhất trong lưới tuning (`Tuned Model`) |
+| `8` | `30` | `59.3857` | |
+
+- Cấu hình thắng vòng tuning (`max_depth=8, min_samples_leaf=10`) được gán tên **`Tuned Model`** trong bảng tổng hợp; khi đánh giá trên Test đạt RMSE `50,4106 BRL`, MAE `4,2989 BRL`, MSE `2.541,2236`, $R^2$ `0,0719`, WAPE `1,0046`, Cost `40,6158` (xếp thứ 2 toàn bảng sau `Two-Stage Hurdle`).

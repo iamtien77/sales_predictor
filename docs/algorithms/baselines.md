@@ -87,13 +87,21 @@ Quy trình đánh giá của nhóm tuân thủ giao thức: lựa chọn mô hì
   3. Root Mean Squared Error (RMSE): $\text{BRL}$ (tiêu chí chính).
   4. Hệ số xác định ($R^2$ Score).
   5. Weighted Absolute Percentage Error (WAPE).
+  6. Cost_Per_Item_BRL: Độ đo chi phí bất đối xứng giữa dự báo thiếu và dự báo thừa trên từng dòng sản phẩm–tuần.
 
 ---
 
-## 5. Status (Trạng thái thiết kế & Khung triển khai)
+## 5. Status (Trạng thái cài đặt & Kết quả đối chuẩn)
 
-- **Định hướng thiết kế:** Cài đặt From-Scratch thuần đại số tuyến tính cơ bản, không sử dụng thư viện học máy bậc cao.
-- **Chuẩn hóa giao diện:** Thiết kế giao diện thống nhất nhận ma trận đầu vào $X$ và nhãn $y$, trả về vector dự báo log để tích hợp liền mạch vào quy trình so sánh tự động của bài lab.
+- **Đã cài đặt From-Scratch ([`src/models/baselines.py`](../../src/models/baselines.py)):** Cài đặt đầy đủ 4 mô hình đối chứng cơ sở thuần NumPy/Pandas (bao gồm lớp `MeanRegressorFromScratch` cho Log Mean Baseline, hiển thị là `Mean Baseline` trong các bảng kết quả) tuân thủ giao diện `fit()` / `predict()` thống nhất.
+- **Kết quả thực nghiệm mới nhất (`11/11/2026`, Validation 249.399 dòng / Test 293.717 dòng):**
+
+| Mô hình Baseline | Val RMSE (BRL) | Test RMSE (BRL) | Test MAE (BRL) | Test $R^2$ | Test WAPE |
+| --- | --- | --- | --- | --- | --- |
+| Revenue Mean Baseline | `63.3996` | `52.4622` | `11.8955` | `-0.0052` | `2.7798` |
+| Mean Baseline (`MeanRegressorFromScratch`) | `63.5862` | `52.4835` | `4.5026` | `-0.0060` | `1.0522` |
+| Zero Baseline | `63.6067` | `52.5022` | `4.2792` | `-0.0067` | `1.0000` |
+| Previous Week Baseline | `81.9053` | `75.3892` | `9.0765` | `-1.0757` | `2.1211` |
 
 ---
 
@@ -105,9 +113,11 @@ Quy trình đánh giá của nhóm tuân thủ giao thức: lựa chọn mô hì
 
 ### 6.2. Vai trò mốc đối chứng chuỗi thời gian của Previous Week Baseline
 - Previous Week Baseline đại diện cho giả định quán tính ngắn hạn trong phân tích chuỗi thời gian truyền thống ($s_t \approx s_{t-1}$).
-- Đối chiếu với mô hình quán tính là bước bắt buộc để chứng minh mô hình máy học có khả năng nắm bắt xu hướng tốt hơn việc chỉ sao chép số liệu tuần trước.
+- Đối chiếu với mô hình quán tính là bước bắt buộc để chứng minh mô hình máy học có khả năng nắm bắt xu hướng tốt hơn việc chỉ sao chép số liệu tuần trước. Thực tế trên tập dữ liệu thưa `96.21%` số 0 của Olist, việc lấy nguyên tuần trước cho sai số rất cao (Val RMSE `81.9053 BRL`, Test RMSE `75.3892 BRL`).
 
 ### 6.3. Tiêu chuẩn đánh giá mô hình học máy
 Nhóm đặt ra tiêu chuẩn: Một mô hình học máy ứng viên (Linear Regression, Decision Tree, Random Forest, Gradient Boosting, Two-Stage Hurdle) chỉ được nhóm đề xuất giữ lại nếu:
-1. Đạt **Validation RMSE (BRL)** thấp hơn baseline tốt nhất trong 4 baseline trên.
+1. Đạt **Validation RMSE (BRL)** thấp hơn baseline tốt nhất trong 4 baseline trên (`Revenue Mean Baseline`: `63.3996 BRL`).
 2. Có khả năng giải thích hoặc mô hình hóa được phân phối xác suất phát sinh giao dịch thay vì chỉ dự báo theo một quy tắc hằng số cứng nhắc.
+
+Trong lần chạy gần nhất, `Two-Stage Hurdle` (`55.9393 BRL`), `Tuned Model` (`Decision Tree max_depth=8`: `59.2288 BRL`), `Decision Tree` (`61.1664 BRL`), `Gradient Boosting` (`62.8054 BRL`) và `Random Forest` (`63.1106 BRL`) đều vượt mốc baseline này trên tập Validation, còn `Linear Regression` không đạt tiêu chuẩn.

@@ -37,9 +37,9 @@ Ghi nhận toàn bộ các giao dịch mua hàng phát sinh:
 3. **Loại bỏ đặc trưng tương lai:** Bất kỳ thuộc tính nào được cập nhật sau ngày niêm yết đều bị loại bỏ để tránh rò rỉ dữ liệu.
 4. **Biến mục tiêu:** Tổng doanh thu phát sinh trong khoảng $[t_{\text{listing}}, t_{\text{listing}} + 7 \text{ ngày})$. Giá đầu vào là `listed_price` tại thời điểm niêm yết, không dùng giá bán trung bình trong tương lai.
 
-## 4. Thiết kế Khung Đánh giá Mô hình
+## 4. Thiết kế & Trạng thái Khung Đánh giá Mô hình
 
-Khi có tập dữ liệu đáp ứng đầy đủ các quy chuẩn trên, bài lab dự kiến đánh giá theo quy trình:
-- Phân chia tập dữ liệu theo thời gian (Temporal Split) kết hợp kỹ thuật Purging nhãn Train để tránh chồng lấn thời gian sang Test.
+Khung xử lý và đánh giá theo đúng quy chuẩn trên đã được cài đặt sẵn tại [`src/data/launch.py`](../../src/data/launch.py) (`build_listing_launch_dataset`) và [`src/evaluation/listing_launch.py`](../../src/evaluation/listing_launch.py) (`evaluate_listing_launch`), đồng thời đã được kiểm thử bằng dữ liệu giả lập trong [`tests/test_experiments_and_launch.py`](../../tests/test_experiments_and_launch.py) (chưa chạy trên dữ liệu thật do bộ Olist chưa có bảng `catalog.csv`):
+- Phân chia tập dữ liệu theo thời gian (Temporal Split, mở rộng qua 3 cửa sổ rolling) kết hợp kỹ thuật Purging nhãn Train để tránh chồng lấn thời gian sang Test.
 - So sánh các mô hình: Cây hồi quy dựa trên thuộc tính sản phẩm, Baseline Trung vị danh mục, Baseline Zero, và Baseline Một đơn vị theo giá niêm yết.
 - Đo lường sai số trên thang tiền tệ thực tế bằng MAE và RMSE (đơn vị BRL).
