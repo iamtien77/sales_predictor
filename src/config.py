@@ -59,6 +59,9 @@ CACHE_Y_TEST = PROCESSED_DATA_DIR / "y_test.npy"
 CACHE_FEATURE_NAMES = PROCESSED_DATA_DIR / "feature_names.json"
 CACHE_PIPELINE = PROCESSED_DATA_DIR / "preprocessor_pipeline.pkl"
 
+# Báo cáo JSON tổng hợp toàn bộ kết quả trước, trong và sau train
+PIPELINE_REPORT_JSON = METRICS_DIR / "pipeline_run_report.json"
+
 # ==========================================
 # 2. TOÀN BỘ ĐẶC TRƯNG (FULL FEATURE TAXONOMY)
 # ==========================================
