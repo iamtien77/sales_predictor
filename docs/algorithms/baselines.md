@@ -11,9 +11,9 @@
 Trong bài toán dự báo doanh thu chuỗi thời gian, nếu chỉ nhìn vào con số sai số mà không có mốc so sánh, nhóm sẽ không biết mô hình học máy có thực sự hiệu quả hay chỉ đang dự báo ngẫu nhiên quanh mức trung bình.
 
 Mục đích của việc thiết lập hệ thống 4 mô hình cơ sở (Baselines):
-- Thiết lập mốc đối chiếu theo metric đã chọn. Một mô hình phức tạp chỉ có giá trị khi chứng minh được mức cải thiện rõ ràng so với các baseline đơn giản trên tập Validation.
+- Thiết lập mốc đối chiếu theo metric đã chọn. Mức cải thiện trên Validation là căn cứ lựa chọn; các mô hình vẫn có thể được thử để học cách hoạt động.
 - Kiểm tra các giả định nghiệp vụ đặc thù: Hiện tượng dữ liệu thưa nhiều số 0 (Zero-Inflated), quy luật quán tính tuần trước (Persistence Lag), và kỳ vọng toán học của phân phối doanh thu.
-- Tách bạch rõ ràng giữa năng lực học thực sự của các thuật toán với sự may rủi do cấu trúc dữ liệu tạo ra.
+- Hạn chế diễn giải sai số thấp như bằng chứng đủ về khả năng dự báo khi chưa có mốc so sánh.
 
 ### 1.2. Cơ sở toán học của 4 Mô hình Baseline
 
@@ -24,7 +24,7 @@ $$
   \hat{y}_{\text{zero}}(x) = 0.0 \implies \hat{y}_{\text{sales}} = 0.0 \text{ BRL}
 $$
 
-- **Ý nghĩa:** Kiểm tra năng lực chống chịu sai số trên tập dữ liệu có phần lớn số dòng là tuần không bán được hàng (`sales = 0`). Khi median của tập đánh giá bằng 0, Zero là nghiệm tối ưu hàm MAE trong lớp dự báo hằng số; đây là mốc sàn cơ bản để đánh giá hiện tượng thiên lệch dự báo.
+- **Ý nghĩa:** Kiểm tra năng lực chống chịu sai số trên tập dữ liệu có phần lớn số dòng là tuần không bán được hàng (doanh thu bằng 0). Khi median của tập đánh giá bằng 0, Zero là nghiệm tối ưu hàm MAE trong lớp dự báo hằng số; đây là mốc sàn cơ bản để đánh giá hiện tượng thiên lệch dự báo.
 
 #### B. Revenue Mean Baseline
 - **Nguyên lý:** Tính trung bình cộng của doanh thu thực tế trên toàn bộ tập Huấn luyện và luôn dự báo hằng số này:
@@ -33,7 +33,7 @@ $$
   \bar{y}_{\text{money}} = \frac{1}{N_{\text{train}}} \sum_{i=1}^{N_{\text{train}}} \text{sales}_i
 $$
 
-- Giá trị trả về trong không gian log để thống nhất giao diện: $\hat{y} = \log(1 + \bar{y}_{\text{money}})$.
+- Giá trị trả về trong không gian log để dùng chung cách biểu diễn dự báo: $\hat{y} = \log(1 + \bar{y}_{\text{money}})$.
 - **Ý nghĩa:** Theo định nghĩa của hệ số xác định $R^2$, dự báo bằng trung bình mẫu là nghiệm tối ưu MSE trong lớp dự báo hằng số trên tập Train.
 
 #### C. Log Mean Baseline
@@ -46,7 +46,7 @@ $$
 - **Ý nghĩa:** Mốc đối chứng hằng số trong cùng không gian tối ưu hóa logarit của các thuật toán hồi quy.
 
 #### D. Previous Week Baseline
-- **Nguyên lý:** Mô hình quán tính chuỗi thời gian (Persistence Forecasting), lấy doanh thu tuần liền trước ($t-1$, tương ứng đặc trưng `last_week_sales`) làm giá trị dự báo cho tuần này ($t$):
+- **Nguyên lý:** Mô hình quán tính chuỗi thời gian (Persistence Forecasting), lấy doanh thu tuần liền trước ($t-1$, tương ứng đặc trưng doanh thu tuần trước) làm giá trị dự báo cho tuần này ($t$):
 
 $$
   \hat{y}_{\text{sales}}(t) = \text{sales}(t-1)
@@ -58,7 +58,7 @@ $$
 
 ## 2. Input / Output (Đầu vào & Đầu ra)
 
-- **Input:** Ma trận đặc trưng $X$ hoặc vector đặc trưng (đối với Previous Week Baseline, mô hình trích xuất đúng cột `last_week_sales` dựa trên vị trí đặc trưng và khôi phục giá trị doanh thu gốc).
+- **Input:** Thông tin tương ứng với từng baseline; riêng Previous Week cần doanh thu tuần liền trước trên thang BRL.
 - **Output:** Vector dự báo liên tục trong không gian log, chuyển đổi sang đơn vị tiền tệ BRL bằng hàm:
 
 $$
@@ -72,7 +72,7 @@ $$
 - **Phân chia Temporal Split 80/10/10 theo số tuần lịch:**
   - Tập dữ liệu được chia theo trục thời gian: khoảng 80% số tuần đầu cho Train, 10% số tuần tiếp theo cho Validation, và 10% số tuần cuối cho Test.
 - **Nguyên tắc chống rò rỉ dữ liệu (Data Leakage):**
-  - Trong học máy, việc chia dữ liệu phải thực hiện TRƯỚC khi tính toán bất kỳ tham số thống kê nào.
+  - Chia tập trước khi học tham số mô hình và thống kê tiền xử lý; đặc trưng lịch sử tuân thủ mốc dự báo của từng mẫu.
   - Các tham số ($\bar{y}_{\text{money}}$, $\bar{y}_{\text{log}}$) CHỈ được tính duy nhất trên tập Train, tuyệt đối không tính trên hoặc cập nhật từ tập Validation hay Test.
 
 ---
@@ -87,21 +87,20 @@ Quy trình đánh giá của nhóm tuân thủ giao thức: lựa chọn mô hì
   3. Root Mean Squared Error (RMSE): $\text{BRL}$ (tiêu chí chính).
   4. Hệ số xác định ($R^2$ Score).
   5. Weighted Absolute Percentage Error (WAPE).
-  6. Cost_Per_Item_BRL: Độ đo chi phí bất đối xứng giữa dự báo thiếu và dự báo thừa trên từng dòng sản phẩm–tuần.
+  6. Điểm phạt thiếu/thừa giả định: Điểm phạt theo trọng số giả định, không phải chi phí vận hành đo được, cho dự báo thiếu và thừa trên từng dòng sản phẩm–tuần.
 
 ---
 
-## 5. Status (Trạng thái cài đặt & Kết quả đối chuẩn)
+## 5. Design (Phương án đối chứng)
 
-- **Đã cài đặt From-Scratch ([`src/models/baselines.py`](../../src/models/baselines.py)):** Cài đặt đầy đủ 4 mô hình đối chứng cơ sở thuần NumPy/Pandas (bao gồm lớp `MeanRegressorFromScratch` cho Log Mean Baseline, hiển thị là `Mean Baseline` trong các bảng kết quả) tuân thủ giao diện `fit()` / `predict()` thống nhất.
-- **Kết quả thực nghiệm mới nhất (`11/11/2026`, Validation 249.399 dòng / Test 293.717 dòng):**
+Nhóm dự kiến dùng cùng cách chia dữ liệu và cùng đơn vị đánh giá cho bốn baseline. Bảng sau nêu nội dung đối chiếu, chưa ghi số đo thực nghiệm:
 
-| Mô hình Baseline | Val RMSE (BRL) | Test RMSE (BRL) | Test MAE (BRL) | Test $R^2$ | Test WAPE |
-| --- | --- | --- | --- | --- | --- |
-| Revenue Mean Baseline | `63.3996` | `52.4622` | `11.8955` | `-0.0052` | `2.7798` |
-| Mean Baseline (`MeanRegressorFromScratch`) | `63.5862` | `52.4835` | `4.5026` | `-0.0060` | `1.0522` |
-| Zero Baseline | `63.6067` | `52.5022` | `4.2792` | `-0.0067` | `1.0000` |
-| Previous Week Baseline | `81.9053` | `75.3892` | `9.0765` | `-1.0757` | `2.1211` |
+| Mô hình Baseline | Thông tin sử dụng | Nội dung dự kiến kiểm tra |
+| --- | --- | --- |
+| Revenue Mean Baseline | Trung bình doanh thu Train | Sai số khi dùng một mức doanh thu chung |
+| Log Mean Baseline | Trung bình nhãn log trên Train | Khác biệt với trung bình doanh thu sau phép nghịch đảo log |
+| Zero Baseline | Giá trị 0 | MAE và RMSE khi không dự báo doanh thu dương |
+| Previous Week Baseline | Doanh thu tuần liền trước | Khả năng tham chiếu của lịch sử gần nhất |
 
 ---
 
@@ -113,11 +112,11 @@ Quy trình đánh giá của nhóm tuân thủ giao thức: lựa chọn mô hì
 
 ### 6.2. Vai trò mốc đối chứng chuỗi thời gian của Previous Week Baseline
 - Previous Week Baseline đại diện cho giả định quán tính ngắn hạn trong phân tích chuỗi thời gian truyền thống ($s_t \approx s_{t-1}$).
-- Đối chiếu với mô hình quán tính là bước bắt buộc để chứng minh mô hình máy học có khả năng nắm bắt xu hướng tốt hơn việc chỉ sao chép số liệu tuần trước. Thực tế trên tập dữ liệu thưa `96.21%` số 0 của Olist, việc lấy nguyên tuần trước cho sai số rất cao (Val RMSE `81.9053 BRL`, Test RMSE `75.3892 BRL`).
+- Đối chiếu với mô hình quán tính giúp kiểm tra liệu cách học từ nhiều đặc trưng có cải thiện hơn việc sao chép doanh thu tuần trước hay không.
 
 ### 6.3. Tiêu chuẩn đánh giá mô hình học máy
 Nhóm đặt ra tiêu chuẩn: Một mô hình học máy ứng viên (Linear Regression, Decision Tree, Random Forest, Gradient Boosting, Two-Stage Hurdle) chỉ được nhóm đề xuất giữ lại nếu:
-1. Đạt **Validation RMSE (BRL)** thấp hơn baseline tốt nhất trong 4 baseline trên (`Revenue Mean Baseline`: `63.3996 BRL`).
-2. Có khả năng giải thích hoặc mô hình hóa được phân phối xác suất phát sinh giao dịch thay vì chỉ dự báo theo một quy tắc hằng số cứng nhắc.
+1. Đạt **Validation RMSE (BRL)** thấp hơn baseline tốt nhất trong bốn baseline.
+2. Trình bày được cách dự báo, mức độ phức tạp và các trường hợp còn hạn chế.
 
-Trong lần chạy gần nhất, `Two-Stage Hurdle` (`55.9393 BRL`), `Tuned Model` (`Decision Tree max_depth=8`: `59.2288 BRL`), `Decision Tree` (`61.1664 BRL`), `Gradient Boosting` (`62.8054 BRL`) và `Random Forest` (`63.1106 BRL`) đều vượt mốc baseline này trên tập Validation, còn `Linear Regression` không đạt tiêu chuẩn.
+Nếu baseline có điểm tốt nhất theo tiêu chí đã chọn, nhóm sẽ giữ baseline. Test chỉ dùng để đánh giá sau lựa chọn.

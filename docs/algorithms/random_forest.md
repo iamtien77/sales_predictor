@@ -13,7 +13,7 @@ Một cây quyết định đơn lẻ (Decision Tree) dù có khả năng nắm 
 Mục đích của thuật toán **Random Forest Regressor** trong thiết kế của nhóm:
 - Ứng dụng kỹ thuật **Ensemble Bagging (Bootstrap Aggregating)** kết hợp lấy mẫu thuộc tính ngẫu nhiên (Feature Subsampling) để xây dựng một tập hợp gồm $B$ cây hồi quy độc lập.
 - Giảm thiểu phương sai của mô hình thông qua phép lấy trung bình cộng dự báo từ nhiều cây, giúp hạn chế rủi ro quá khớp trên tập dữ liệu lớn.
-- Tăng tính vững chắc (Robustness) khi dự báo doanh thu cho hàng chục nghìn mã sản phẩm có độ phân tán cao.
+- Thử xem việc kết hợp cây có giúp dự báo ổn định hơn khi dữ liệu thay đổi không.
 
 ### 1.2. Cơ sở toán học & Nguyên lý Ensemble Bagging
 Thuật toán hoạt động dựa trên ba nguyên lý cốt lõi:
@@ -34,7 +34,7 @@ $$
 k = \lfloor \sqrt{d} \rfloor \text{ đặc trưng}
 $$
 
-Điều này làm giảm độ tương quan (Correlation) $\rho$ giữa các cây con, giúp phương sai của giá trị trung bình giảm đi đáng kể theo công thức phương sai tổ hợp:
+Lấy ngẫu nhiên đặc trưng nhằm giảm tương quan giữa các cây. Nếu các cây có cùng phương sai $\sigma^2$ và tương quan cặp $\rho$, phương sai trung bình được biểu diễn như sau:
 
 $$
 \text{Var}\left(\frac{1}{B} \sum_{b=1}^{B} T_b(x)\right) = \rho \sigma^2 + \frac{1 - \rho}{B} \sigma^2
@@ -73,8 +73,8 @@ $$
   - Tập Huấn luyện (Train Set): Khoảng 80% số tuần đầu, dùng để xây dựng các tập con bootstrap và huấn luyện các cây con.
   - Tập Kiểm định (Validation Set): Khoảng 10% số tuần kế tiếp, dùng để tinh chỉnh siêu tham số số lượng cây và độ sâu.
   - Tập Kiểm thử Độc lập (Test Set): Khoảng 10% số tuần cuối cùng, đánh giá kiểm định độc lập.
-- **Bảo toàn tuần doanh thu bằng 0:** Giữ nguyên các tuần `sales = 0.0` BRL để phản ánh đúng cấu trúc thưa thớt của thị trường.
-- **Nguyên tắc chống rò rỉ:** Preprocessing chỉ fit trên Train; toàn bộ đặc trưng trễ/cuộn chỉ lấy từ thông tin đã xảy ra trước thời điểm dự báo.
+- **Bảo toàn tuần doanh thu bằng 0:** Giữ nguyên các tuần doanh thu bằng 0 BRL để phản ánh đúng cấu trúc thưa thớt của thị trường.
+- **Nguyên tắc chống rò rỉ:** Các thống kê tiền xử lý chỉ học từ Train; toàn bộ đặc trưng trễ/cuộn chỉ lấy từ thông tin đã xảy ra trước thời điểm dự báo.
 
 ---
 
@@ -107,10 +107,10 @@ $$
 
 ### 6.1. Không gian tìm kiếm siêu tham số dự kiến
 Nhóm thiết lập không gian tìm kiếm siêu tham số trên tập Validation nhằm xác định cấu hình phù hợp:
-- Số lượng cây (`n_estimators`): Khảo sát các mức $\{10, 20, 30\}$.
-- Độ sâu tối đa của cây con (`max_depth`): Khảo sát các mức $\{5, 8\}$.
-- Số mẫu tối thiểu để chia nút (`min_samples_split`): Khảo sát $\{10, 20\}$.
-- Tỷ lệ lấy mẫu đặc trưng (`max_features`): Khảo sát quy tắc căn bậc hai $k = \lfloor \sqrt{d} \rfloor$.
+- Số lượng cây: Khảo sát các mức $\{10, 20, 30\}$.
+- Độ sâu tối đa của cây con: Khảo sát các mức $\{5, 8\}$.
+- Số mẫu tối thiểu để chia nút: Khảo sát $\{10, 20\}$.
+- Số đặc trưng xét tại mỗi nút: Khảo sát quy tắc căn bậc hai $k = \lfloor \sqrt{d} \rfloor$.
 
 ### 6.2. Tiêu chí đánh giá và lựa chọn cấu hình
 - Toàn bộ các cấu hình trong không gian tìm kiếm được đánh giá độc lập trên tập Validation.

@@ -1,6 +1,6 @@
 # Tổng Quan Về Các Mô Hình Trong Bài Lab Học Máy
 
-Tài liệu này tổng hợp danh mục và mô tả ngắn gọn về các mô hình mà nhóm thử nghiệm trong bài lab môn Học Máy, đã được đối chiếu lại để khớp với mã nguồn trong [`src/`](../../src/) và kết quả chạy thực nghiệm mới nhất (`11/11/2026`).
+Tài liệu giới thiệu các phương pháp dự kiến thử trong bài lab, cùng quy tắc chuẩn bị dữ liệu và so sánh mô hình. Các lựa chọn sẽ được đánh giá theo tiêu chí xác định trước.
 
 ---
 
@@ -24,35 +24,35 @@ Tài liệu này tổng hợp danh mục và mô tả ngắn gọn về các mô
 
 ## 2. Khung Đánh giá & Tiêu chuẩn So sánh Mô hình
 
-Toàn bộ các mô hình được nhóm so sánh trên cùng một điều kiện:
-- **Nguyên tắc chống rò rỉ dữ liệu (Data Leakage):** Phân chia tập dữ liệu theo thời gian (Temporal Split 80/10/10) TRƯỚC khi tiến hành tiền xử lý. Toàn bộ tham số thống kê chỉ được fit trên tập Train.
+Các mô hình dự báo tuần dự kiến được so sánh trên cùng các tập dữ liệu và tiêu chí:
+- **Nguyên tắc chống rò rỉ dữ liệu (Data Leakage):** Chia theo thời gian với tỷ lệ dự kiến 80/10/10 theo số tuần trước khi học tham số điền thiếu, mã hóa và chuẩn hóa. Các tham số này chỉ học từ Train; tạo bảng tuần và đặc trưng lịch sử phải tuân thủ mốc dự báo của từng mẫu.
 - **Tiêu chuẩn chọn mô hình:** Sử dụng **Root Mean Squared Error trên thang đo tiền tệ thực tế (Validation RMSE BRL)** sau khi chuyển đổi ngược từ không gian logarit: $\hat{s} = \max(0, \exp(\hat{y}) - 1)$.
 - **Bộ chỉ số đo lường toàn diện:**
   1. **RMSE (BRL):** Tiêu chí đánh giá chính, phạt nặng các sai số dự báo lệch lớn.
   2. **MAE (BRL):** Đo lường độ lệch tuyệt đối trung bình trên từng đơn vị sản phẩm–tuần.
-  3. **MSE ($\text{BRL}^2$):** Phản ánh phương sai sai số bình phương.
+  3. **MSE ($\text{BRL}^2$):** Trung bình bình phương sai số.
   4. **$R^2$ Score:** Đo lường tỷ lệ phương sai doanh thu được giải thích so với mốc trung bình.
-  5. **WAPE:** Sai số phần trăm có trọng số, tránh lỗi chia cho 0 trên dữ liệu thưa.
-  6. **Cost_Per_Item_BRL:** Độ đo chi phí bất đối xứng giữa dự báo thiếu và dự báo thừa trên từng dòng sản phẩm–tuần.
+  5. **WAPE:** Sai số phần trăm có trọng số, không chia riêng cho từng mẫu bằng 0; cần quy ước nếu tổng doanh thu bằng 0.
+  6. **Điểm phạt giả định:** So sánh mức phạt bất đối xứng giữa dự báo thiếu và dự báo thừa trên từng dòng sản phẩm–tuần.
 
 ---
 
-## 3. Đặc Điểm Kiến Trúc Của Các Thuật Toán Đang Cài Đặt
+## 3. Đặc Điểm Thiết Kế Của Các Thuật Toán
 
-Nhóm cài đặt From-Scratch và khảo sát các họ thuật toán với các cơ chế toán học bổ trợ lẫn nhau:
-1. **Baselines Cơ sở ([`src/models/baselines.py`](../../src/models/baselines.py)):** Bốn mô hình tham chiếu (Zero, Revenue Mean, Log Mean qua `MeanRegressorFromScratch`, Previous Week) thiết lập mốc đối chứng tối thiểu, làm thước đo để xem mô hình học máy có thực sự học được quy luật hay không.
-2. **Linear Regression ([`src/models/linear.py`](../../src/models/linear.py)):** Mô hình tham số tuyến tính (`LinearRegressionFromScratch`) có điều chuẩn Ridge nhằm kiểm tra giả định tương quan tuyến tính của các biến trễ và biến danh mục, tích hợp cơ chế kẹp biên log thích ứng để hạn chế sai số tràn số.
-3. **Cây Quyết định ([`src/models/tree.py`](../../src/models/tree.py)):** Mô hình phi tuyến (`DecisionTreeRegressorFromScratch`) dạng phân tách nhị phân theo độ giảm phương sai (dùng histogram binning trên dữ liệu lớn), tạo ra các quy tắc quyết định dạng If-Else dễ giải thích; bản chỉnh tham số (`Tuned Model`, `max_depth=8, min_samples_leaf=10`) đạt Validation RMSE `59.2288 BRL`.
-4. **Học Kết hợp ([`src/models/ensemble.py`](../../src/models/ensemble.py)):** Hai hướng tiếp cận Ensemble tương phản: Bagging (`RandomForestRegressorFromScratch`, lấy mẫu bootstrap và đặc trưng ngẫu nhiên) và Boosting (`GradientBoostingRegressorFromScratch`, học tuần tự trên phần dư).
-5. **Mô hình Hai Giai đoạn ([`src/models/hurdle.py`](../../src/models/hurdle.py)):** Kiến trúc `TwoStageHurdleRegressorFromScratch` phân tách bài toán nhiều số 0 thành hai giai đoạn độc lập: phân loại xác suất phát sinh đơn hàng (dùng `DecisionTreeRegressorFromScratch` trên nhãn `0/1` kẹp về `[0, 1]`) và hồi quy quy mô doanh thu khi có giao dịch; đang là mô hình được chọn (`Selected=True`) với Validation RMSE `55.9393 BRL` và Test RMSE `49.2314 BRL`.
+Nhóm dự kiến khảo sát các phương pháp sau:
+1. **Baseline:** Zero, Revenue Mean, Log Mean và Previous Week làm mốc so sánh đơn giản.
+2. **Linear Regression:** thử quan hệ tuyến tính trên nhãn log, có Ridge và giới hạn dự báo học từ Train để kiểm soát giá trị lớn.
+3. **Decision Tree:** chia dữ liệu theo mức giảm phương sai; giới hạn độ sâu và số mẫu tại lá. Có thể dùng một tập ngưỡng phân vị để giảm số phép chia cần thử.
+4. **Random Forest và Gradient Boosting:** lần lượt kết hợp các cây học trên mẫu bootstrap và chuỗi cây học phần dư.
+5. **Two-Stage Hurdle:** tách ước lượng xác suất có bán và dự báo mức doanh thu khi có bán. Nghịch đảo trung bình log không mặc nhiên là trung bình doanh thu.
 
 ---
 
 ## 4. Các Phần Thử Nghiệm Mở Rộng
 
-- **Luồng Cold-start Proxy ([`src/models/cold_start.py`](../../src/models/cold_start.py), [`src/evaluation/cold_start.py`](../../src/evaluation/cold_start.py)):** Thử nghiệm ước lượng doanh thu 7 ngày đầu sau giao dịch đầu tiên đã biết bằng `ColdStartProductRegressor` (5 biến số `log1p` + Target Encoding `smoothing=10.0`). Nhóm đối chiếu với Baseline Giá bán đơn vị (`SingleUnitPriceBaseline`, vẫn vượt trội hơn với Test MAE `23.0145 BRL` so với `39.7939 BRL`) và Baseline Trung vị danh mục (`CategoryMedianColdStartBaseline`).
-- **Luồng Mô phỏng Kịch bản Tiếp thị ([`src/deployment/predictor.py`](../../src/deployment/predictor.py)):** Thiết lập hàm phản hồi phi tuyến $u(A) = 1 + \beta \ln(1 + A/R)$ để khảo sát độ nhạy doanh thu theo ngân sách quảng cáo dựa trên giả định toán học, phục vụ trực quan hóa What-If trong tab 5 của [`app.py`](../../app.py).
-- **Quy chuẩn Dữ liệu Niêm yết ([`src/data/launch.py`](../../src/data/launch.py), [`src/evaluation/listing_launch.py`](../../src/evaluation/listing_launch.py)):** Xác lập hợp đồng dữ liệu và bộ pipeline kiểm thử trên dữ liệu giả lập cho bài toán dự báo trước khi sản phẩm ra mắt, sẵn sàng khi có bảng catalog thực tế.
+- **Cold-start proxy:** so sánh cây dự báo doanh thu bảy ngày từ giao dịch đầu đã biết với baseline một đơn vị và trung vị danh mục. Dữ liệu và cách chia được xác định riêng với bài toán tuần.
+- **Mô phỏng marketing:** dùng hàm giả định $u(A)=1+\beta\ln(1+A/R)$ để quan sát độ nhạy. Do thiếu dữ liệu chiến dịch, không diễn giải mô phỏng như tác động quảng cáo đo được. Kịch bản giảm giá dùng sản lượng giả định để tính doanh thu.
+- **Dữ liệu niêm yết:** nêu yêu cầu dữ liệu cho một hướng mở rộng trước lần bán đầu. Chỉ xem xét đánh giá khi có ngày niêm yết và cả sản phẩm chưa bán; dữ liệu giả lập chỉ giúp kiểm tra quy trình.
 
 ---
 
@@ -66,12 +66,18 @@ flowchart TD
     D --> E["Tập Train (80% số tuần đầu)"]
     D --> F["Tập Validation (10% số tuần tiếp theo)"]
     D --> G["Tập Test (10% số tuần cuối cùng)"]
-    E --> H["Fit các bộ tiền xử lý (Imputer, Scaler, Encoder)"]
+    E --> H["Học tham số tiền xử lý từ Train"]
     H --> I["Đóng băng tham số tiền xử lý"]
-    I -.->|Chỉ áp dụng Transform| F
-    I -.->|Chỉ áp dụng Transform| G
+    F --> V["Biến đổi Validation"]
+    G --> T["Biến đổi Test"]
+    I -.->|Tham số từ Train| V
+    I -.->|Tham số từ Train| T
     H --> J["Huấn luyện 4 Baselines & Các Mô hình Ứng viên"]
     J --> K["Đánh giá & Chọn mô hình tối ưu trên Validation (RMSE BRL)"]
-    K --> L["Đánh giá độc lập lần cuối trên Test"]
-    L --> M["Tổng hợp kết quả (README, pipeline_run_report.json)"]
+    V --> K
+    K --> L["Đánh giá sau lựa chọn trên Test"]
+    T --> L
+    L --> M["Tổng hợp bảng đánh giá và nhận xét"]
 ```
+
+Trong đánh giá tuần, lịch sử được cập nhật từ các tuần đã kết thúc, nhưng mô hình và tham số tiền xử lý giữ cố định. Khi dự báo minh họa, đầu vào đi qua cùng bộ tiền xử lý rồi mô hình; dự báo log được chuyển về BRL không âm. Điểm phạt thiếu/thừa chỉ dùng trọng số giả định, không phải chi phí kho thực tế.

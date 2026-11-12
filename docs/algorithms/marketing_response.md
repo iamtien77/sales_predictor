@@ -13,7 +13,7 @@ Trong thực tế, việc ước lượng tác động của quảng cáo đến
 ### 1.2. Hướng tiếp cận: Mô hình phản hồi theo quy luật lợi suất giảm dần
 Để phục vụ việc thử nghiệm kịch bản giả định, nhóm chọn mô phỏng theo quy luật **Lợi suất giảm dần (Diminishing Marginal Returns)**:
 - **Chế độ cơ sở (Baseline Only):** Giữ nguyên mức doanh thu được dự báo từ mô hình tuần; không giả định thêm mức tăng trưởng nào.
-- **Chế độ phản hồi giảm biên (Calibrated Diminishing Returns):** Dùng hàm logarit để mô phỏng mức tăng trưởng doanh thu khi rót thêm ngân sách, với hệ số phản hồi $\beta$ và mức ngân sách chuẩn $R$ được đặt trước theo giả định.
+- **Chế độ phản hồi giảm biên (Assumed Diminishing Returns):** Dùng hàm logarit để mô phỏng mức tăng trưởng doanh thu khi rót thêm ngân sách, với hệ số phản hồi $\beta$ và mức ngân sách chuẩn $R$ được đặt trước theo giả định.
 
 ---
 
@@ -61,33 +61,35 @@ $$
 \text{Marketing ROI \%} = 100 \cdot \frac{m \cdot \Delta S - A}{A}
 $$
 
+Nếu ngân sách bằng 0, tỷ số ROAS và ROI không xác định. Nếu doanh thu cơ sở bằng 0, tỷ lệ tăng trưởng cũng không xác định. Ở chế độ chỉ giữ dự báo cơ sở, không suy ra doanh thu tăng thêm hay ROI do quảng cáo.
+
 ---
 
 ## 3. Input / Output (Đầu vào & Đầu ra mô phỏng)
 
 ### 3.1. Tham số đầu vào
 Mô hình mô phỏng tiếp nhận các tham số:
-- `base_product`: Dòng dữ liệu của sản phẩm cần dự báo kịch bản.
-- `ad_spend_levels`: Danh sách các mức ngân sách cần mô phỏng ($A \ge 0$, đơn vị BRL).
-- `elasticity` ($\beta$): Hệ số phản hồi giả định (mặc định $\beta = 0.15$).
-- `reference_spend` ($R$): Mức chi tham chiếu (mặc định $R = 100.0$ BRL).
-- `gross_margin` ($m$): Tỷ lệ biên lợi nhuận gộp giả định (mặc định $m = 1.0$).
+- **Thông tin sản phẩm**: Dòng dữ liệu của sản phẩm cần dự báo kịch bản.
+- **Các mức ngân sách**: Danh sách các mức ngân sách cần mô phỏng ($A \ge 0$, đơn vị BRL).
+- **Hệ số phản hồi** ($\beta$): Hệ số phản hồi giả định (ví dụ giả định $\beta = 0.15$).
+- **Mức chi tham chiếu** ($R$): Mức chi tham chiếu (ví dụ giả định $R = 100.0$ BRL).
+- **Biên lợi nhuận gộp** ($m$): Tỷ lệ biên lợi nhuận gộp giả định (ví dụ giả định $m = 1.0$).
 
-### 3.2. Cấu trúc kết quả mô phỏng
-Bảng kết quả kịch bản bao gồm các cột thông tin:
-- `Ad_Spend_BRL`: Mức ngân sách tiếp thị đưa vào.
-- `Baseline_Sales_BRL`: Doanh thu dự báo cơ sở $S_0$.
-- `Predicted_Sales_BRL`: Doanh thu dự báo theo kịch bản $\hat{S}(A)$.
-- `Incremental_Sales_BRL`: Doanh thu tăng thêm $\Delta S$.
-- `Sales_Growth_%`: Tỷ lệ tăng trưởng doanh thu so với cơ sở.
-- `ROAS`: Doanh thu tăng thêm thu được trên mỗi đồng chi phí.
-- `Marketing_ROI_%`: Tỷ suất sinh lời ước tính.
+### 3.2. Cấu trúc đầu ra dự kiến
+Bảng kịch bản dự kiến gồm các cột thông tin:
+- **Ngân sách (BRL)**: Mức ngân sách tiếp thị đưa vào.
+- **Doanh thu cơ sở (BRL)**: Doanh thu dự báo cơ sở $S_0$.
+- **Doanh thu kịch bản (BRL)**: Doanh thu dự báo theo kịch bản $\hat{S}(A)$.
+- **Doanh thu tăng thêm (BRL)**: Doanh thu tăng thêm $\Delta S$.
+- **Tăng trưởng (%)**: Tỷ lệ tăng trưởng doanh thu so với cơ sở.
+- **ROAS tăng thêm**: Doanh thu tăng thêm thu được trên mỗi đồng chi phí.
+- **ROI giả định (%)**: Tỷ suất sinh lời ước tính.
 
 ---
 
 ## 4. Mathematical Properties & Boundary Conditions (Tính chất Toán học & Điều kiện Biên)
 
-Hàm mô phỏng được xây dựng thỏa mãn các tính chất tự nhiên:
+Hàm mô phỏng có các tính chất toán học sau:
 1. **Khi không chi tiền quảng cáo ($A = 0$):** Hệ số tăng trưởng $u(0) = 1$, doanh thu tăng thêm $\Delta S(0) = 0$ BRL.
 2. **Quy luật lợi suất giảm dần:** Đạo hàm bậc nhất và bậc hai của doanh thu tăng thêm theo ngân sách:
 
@@ -95,8 +97,8 @@ $$
 \frac{\partial \Delta S}{\partial A} = \frac{S_0 \beta}{R + A} \ge 0, \qquad \frac{\partial^2 \Delta S}{\partial A^2} = -\frac{S_0 \beta}{(R + A)^2} \le 0
 $$
 
-   Điều này phản ánh thực tế rằng khi tiếp tục tăng ngân sách, doanh thu vẫn tăng nhưng tốc độ tăng chậm dần do thị trường dần bão hòa.
-3. **Khi doanh thu cơ sở bằng 0 ($S_0 = 0$):** Nếu sản phẩm dự báo không bán được trong tuần, mô hình giữ nguyên doanh thu bằng 0 ở mọi mức ngân sách, phản ánh giả định rằng quảng cáo không thể tạo ra doanh số nếu sản phẩm không có nhu cầu cơ bản.
+   Đây là giả định mức tăng thêm giảm dần của hàm đã chọn, chưa được kiểm chứng từ dữ liệu quảng cáo. Hàm log vẫn tăng không giới hạn, nên không biểu diễn một mức doanh thu bão hòa hữu hạn.
+3. **Khi doanh thu cơ sở bằng 0 ($S_0 = 0$):** Nếu sản phẩm dự báo không bán được trong tuần, mô hình giữ nguyên doanh thu bằng 0 ở mọi mức ngân sách, đây là giới hạn của cách nhân hệ số với doanh thu cơ sở, không phải kết luận quảng cáo không tạo được nhu cầu mới.
 
 ---
 
